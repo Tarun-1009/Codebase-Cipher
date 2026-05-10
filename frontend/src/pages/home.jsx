@@ -7,7 +7,19 @@ function Home() {
   const [url, setUrl] = useState("");
 
   function handleAnalyze() {
-    navigate("/analyze", { state: { url } });
+    if(!url.trim()){
+      alert("Please enter a URL")
+      return
+    }
+    try{
+      const path =new URL(url).pathname;
+      const [,username, repo] = path.split("/");
+      navigate(`/analyze/${username}/${repo}`);
+    }catch(err){
+      console.error(err);
+      alert("Invalid URL");
+      return
+    }
   }
 
   return (
