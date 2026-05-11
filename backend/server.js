@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const { getRepo } = require("./src/services/githubService");
+const { BuildDependencyTree } = require("./src/utils/buildDependencyTree");
 
 const app = express();
 
@@ -18,8 +18,8 @@ app.get("/analyze/:username/:repo",async (req,res)=>{
 
     const {username,repo}=req.params;
     try {
-        const tree=await getRepo(username,repo);
-        
+        // const tree=await getRepo(username,repo);
+        const tree= await BuildDependencyTree(username,repo);
         res.json(tree);
     } catch (error) {
         res.status(500).json({error:error.message});

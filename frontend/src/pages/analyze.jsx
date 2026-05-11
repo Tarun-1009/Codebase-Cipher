@@ -9,7 +9,7 @@ function analyze() {
 
     useEffect(() => {
         // temprory fetching from  github directly
-        fetch(`https://api.github.com/repos/${username}/${repo}/git/trees/main?recursive=3`)
+        fetch(`http://localhost:5000/analyze/${username}/${repo}`)
         .then(res=>res.json())
         .then(data=>setRepoData(data))
         .catch(err=>setError(err))
