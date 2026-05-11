@@ -19,6 +19,7 @@ app.get("/analyze/:username/:repo",async (req,res)=>{
     const {username,repo}=req.params;
     try {
         const tree=await getRepo(username,repo);
+        
         res.json(tree);
     } catch (error) {
         res.status(500).json({error:error.message});
