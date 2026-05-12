@@ -1,11 +1,12 @@
 const unzipper = require('unzipper');
 const axios = require('axios');
+const { extractDependencies } = require('./extractDependencies');
 
 async function getDefaultBranch(username, repo) {
     try {
         const response = await axios.get(
             `https://api.github.com/repos/${username}/${repo}`,
-            { headers: { 'User-Agent': 'CodeBase_Cipher'}}
+            { headers: { 'User-Agent': 'CodeBase_Cipher' } }
         );
         return response.data.default_branch || 'main';
     } catch (err) {
@@ -35,8 +36,8 @@ async function BuildDependencyTree(username, repo) {
             method: 'get',
             url,
             responseType: 'stream',
-            maxRedirects: 5,          
-            headers: {'User-Agent': 'CodeBase_Cipher'},
+            maxRedirects: 5,
+            headers: { 'User-Agent': 'CodeBase_Cipher' },
         });
     } catch (err) {
         const status = err?.response?.status;
@@ -52,21 +53,45 @@ async function BuildDependencyTree(username, repo) {
     const tree = { name: repo, type: 'folder', children: [] };
 
     return new Promise((resolve, reject) => {
+        const filePromises = [];
+
         response.data
             .pipe(unzipper.Parse())
             .on('entry', (entry) => {
                 const pathSegments = entry.path.split('/');
-                pathSegments.shift(); 
+                pathSegments.shift();
 
                 if (pathSegments.length === 0 || pathSegments[0] === '') {
                     entry.autodrain();
                     return;
                 }
 
-                addTree(tree, pathSegments, 'file', []);
-                entry.autodrain();
+                if (entry.type === 'File') {
+                    const fileName = pathSegments[pathSegments.length - 1];
+                    const isSupported = /\.(js|jsx|ts|tsx|py|java|html)$/.test(fileName);
+
+                    if (isSupported) {
+                        const p = entry.buffer().then(buffer => {
+                            const dependencies = extractDependencies(buffer.toString('utf-8'), pathSegments);
+                            addTree(tree, pathSegments, 'file', dependencies);
+                        }).catch(err => {
+                            console.warn(`Failed to buffer file ${fileName}:`, err.message);
+                            addTree(tree, pathSegments, 'file', []);
+                        });
+                        filePromises.push(p);
+                    } else {
+                        addTree(tree, pathSegments, 'file', []);
+                        entry.autodrain();
+                    }
+                } else {
+                    entry.autodrain();
+                }
             })
-            .on('finish', () => resolve(tree))
+            .on('finish', () => {
+                Promise.all(filePromises)
+                    .then(() => resolve(tree))
+                    .catch(err => reject(new Error(`Error resolving files: ${err.message}`)));
+            })
             .on('error', (err) => reject(new Error(`Zip parse error: ${err.message}`)));
     });
 }
