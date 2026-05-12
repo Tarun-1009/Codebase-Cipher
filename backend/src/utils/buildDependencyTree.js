@@ -98,22 +98,30 @@ async function BuildDependencyTree(username, repo) {
 
 function addTree(tree, pathSegments, type, dependency) {
     let current = tree;
+    let currentPath = "";
     for (let i = 0; i < pathSegments.length; i++) {
         const seg = pathSegments[i];
         if (!seg) continue;
 
         const isLast = i === pathSegments.length - 1;
+        currentPath = currentPath === "" ? seg : `${currentPath}/${seg}`;
 
         let existingChild = current.children.find(child => child.name === seg);
         if (!existingChild) {
             existingChild = {
                 name: seg,
+                path:currentPath,
                 type: isLast ? type : 'folder',
-                ...(!isLast && { children: [] }),
             };
+            if (!isLast || type === 'folder') {
+                existingChild.children = [];
+            }
+
+            // If it's the target file, attach dependencies
             if (isLast && type === 'file') {
                 existingChild.dependencies = dependency;
             }
+
             current.children.push(existingChild);
         }
         current = existingChild;
