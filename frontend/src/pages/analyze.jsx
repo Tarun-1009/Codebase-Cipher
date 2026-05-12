@@ -1,7 +1,8 @@
 import {useState,useEffect} from "react"
 import {Link,useParams} from "react-router-dom"
+import Tree from "../feature/graph/Tree";
 
-function analyze() {
+function Analyze() {
     const {username,repo}=useParams();
     const [repoData,setRepoData]=useState(null);
     const [loading,setLoading]=useState(true);
@@ -27,7 +28,7 @@ function analyze() {
     }
     return <div>
         <h3>Tree structure</h3>
-        <pre>{JSON.stringify(repoData,null,2)}</pre>
+        <Tree repoData={repoData}/>
     </div>
 }
-export default analyze  
+export default Analyze  
