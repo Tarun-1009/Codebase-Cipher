@@ -1,8 +1,10 @@
 import Header from "../components/Headers/Header";
 import Tree from "../components/Canvas/Tree";
 import FileExplorer from "../components/Sidebar/FileExplorer";
-import { useState,useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams } from "react-router-dom";
+import RepoDetail from "../components/Sidebar/RepoDetail";
+import flattenTree from "../utils/treeFlattener";
 import "./analyze.css";
 
 function Analyze() {
@@ -18,6 +20,18 @@ function Analyze() {
             .catch(err => setError(err))
             .finally(() => setLoading(false));
     }, [username, repo]);
+
+    // Compute flattened tree and stats once here to avoid multiple passes
+    const { flatNodes, flatEdges, totalFiles, languages } = useMemo(() => {
+        if (!repoData) return { flatNodes: [], flatEdges: [], totalFiles: 0, languages: [] };
+        const result = flattenTree(repoData);
+        return {
+            flatNodes: result.nodes,
+            flatEdges: result.edges,
+            totalFiles: result.totalFiles,
+            languages: result.languages
+        };
+    }, [repoData]);
     if (loading) {
         return (
             <div className="tree-state">
@@ -39,16 +53,21 @@ function Analyze() {
             </div>
         );
     }
+
+
     return (
         <div className="analyze-root">
             <Header />
             <div className="main-wrapper">
-                <div className="sidebar">
-                    <span className="panel-label">Explorer</span>
-                    <FileExplorer nodes={[repoData]} />
+                <div className="sidebar" style={{ display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ flex: 1, overflowY: 'auto' }}>
+                        <span className="panel-label">Explorer</span>
+                        <FileExplorer nodes={[repoData]} />
+                    </div>
+                    <RepoDetail totalFiles={totalFiles} languages={languages} />
                 </div>
                 <div className="tree-container">
-                    <Tree repoData={repoData}/>
+                    <Tree flatNodes={flatNodes} flatEdges={flatEdges} />
                 </div>
                 <div className="summary">
                     <span className="panel-label">Analysis</span>
