@@ -46,12 +46,11 @@ const edgeOptions = {
     style: { stroke: '#94a3b8', strokeWidth: 1.5 },
 };
 
-function Tree({repoData}) {
+function Tree({ flatNodes, flatEdges }) {
     const { nodes, edges } = useMemo(() => {
-        if (!repoData) return { nodes: [], edges: [] };
-        const result = flattenTree(repoData);
-        return getLayoutedElements(result.nodes, result.edges, 'LR');
-    }, [repoData]);
+        if (!flatNodes || flatNodes.length === 0) return { nodes: [], edges: [] };
+        return getLayoutedElements(flatNodes, flatEdges, 'LR');
+    }, [flatNodes, flatEdges]);
     return (
         <div style={{ width: '100%', height: '100%' }}>
             <ReactFlow
