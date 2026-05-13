@@ -1,0 +1,73 @@
+.file-explorer {
+    display: flex;
+    flex-direction: column;
+    padding-top: 4px;
+}
+
+.tree-item {
+    display: flex;
+    flex-direction: column;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    color: #4a5568;
+    user-select: none;
+}
+
+.tree-item-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    margin-bottom: 2px;
+}
+
+.tree-item-header:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+.tree-item-header.active {
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.tree-item-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    color: #94a3b8;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+}
+
+.tree-item-toggle.open {
+    transform: rotate(90deg);
+}
+
+.tree-item-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1em;
+    flex-shrink: 0;
+}
+
+.tree-item-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+}
+
+.tree-item-children {
+    display: flex;
+    flex-direction: column;
+    padding-left: 14px;
+    margin-left: 8px;
+    border-left: 1px solid #e2e8f0;
+}
