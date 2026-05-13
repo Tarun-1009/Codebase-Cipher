@@ -1,0 +1,53 @@
+/* Header bar */
+.app-header {
+  height: 64px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  z-index: 100;
+  flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+/* Logo image */
+.logo {
+    width: 220px;
+    height: 85px;
+    object-fit: contain;
+    display: block;
+}
+
+/* Left section */
+.header-left,
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Nav buttons */
+.nav-btn {
+  background: transparent;
+  border: none;
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  border-radius: 6px;
+  color: #718096;
+  transition: background 0.2s, color 0.2s;
+}
+
+.nav-btn:hover {
+  background: #f0f4ff;
+  color: #3b82f6;
+}
+
+.nav-btn.active {
+  background: #eff6ff;
+  color: #3b82f6;
+}
