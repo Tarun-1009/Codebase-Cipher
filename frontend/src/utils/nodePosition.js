@@ -5,12 +5,20 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
   dagreGraph.setDefaultEdgeLabel(() => ({}));
 
   // 1. Set the layout direction and node size
-  // Note: 172 and 36 are typical width/height for default nodes
-  dagreGraph.setGraph({ rankdir: direction });
+  dagreGraph.setGraph({
+    rankdir: direction,
+    nodesep: 12,
+    ranksep: 60,
+    marginx: 20,
+    marginy: 20,
+    ranker: 'tight-tree'
+  });
 
   // 2. Add nodes to dagre
+  const NODE_W = 180;
+  const NODE_H = 34;
   nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: 172, height: 36 });
+    dagreGraph.setNode(node.id, { width: NODE_W, height: NODE_H });
   });
 
   // 3. Add edges to dagre
@@ -27,9 +35,8 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
     return {
       ...node,
       position: {
-        // We subtract half width/height because dagre calculates from the center
-        x: nodeWithPosition.x - 172 / 2,
-        y: nodeWithPosition.y - 36 / 2,
+        x: nodeWithPosition.x - NODE_W / 2,
+        y: nodeWithPosition.y - NODE_H / 2,
       },
     };
   });
