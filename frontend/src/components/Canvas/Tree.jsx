@@ -9,27 +9,31 @@ import { FaFolder } from 'react-icons/fa';
 import { resolveIcon } from '../../utils/icons';
 
 /* Folder node */
-const FolderNode = ({ data }) => (
-    <div className="tree-node-card tree-node-folder">
-        <Handle type="target" position={Position.Left} className="tree-handle" />
-        <span className="tree-node-icon">
-            <FaFolder color="#E8A838" size={14} />
-        </span>
-        <span className="tree-node-name">{data.label}</span>
-        <Handle type="source" position={Position.Right} className="tree-handle" />
-    </div>
-);
+const FolderNode = ({ data }) => {
+    const { label, onNodeClick } = data;
+    return (
+        <div className="tree-node-card tree-node-folder" style={{ cursor: 'pointer' }} onClick={() => onNodeClick?.({ name: label, type: 'folder' })}>
+            <Handle type="target" position={Position.Left} className="tree-handle" />
+            <span className="tree-node-icon">
+                <FaFolder color="#E8A838" size={14} />
+            </span>
+            <span className="tree-node-name">{label}</span>
+            <Handle type="source" position={Position.Right} className="tree-handle" />
+        </div>
+    );
+};
 
 /* File node */
 const FileNode = ({ data }) => {
-    const { Icon, color } = resolveIcon(data.label);
+    const { label, onNodeClick } = data;
+    const { Icon, color } = resolveIcon(label);
     return (
-        <div className="tree-node-card tree-node-file">
+        <div className="tree-node-card tree-node-file" style={{ cursor: 'pointer' }} onClick={() => onNodeClick?.({ name: label, type: 'file' })}>
             <Handle type="target" position={Position.Left} className="tree-handle" />
             <span className="tree-node-icon">
                 <Icon color={color} size={14} />
             </span>
-            <span className="tree-node-name">{data.label}</span>
+            <span className="tree-node-name">{label}</span>
             <Handle type="source" position={Position.Right} className="tree-handle" />
         </div>
     );
@@ -46,11 +50,20 @@ const edgeOptions = {
     style: { stroke: '#94a3b8', strokeWidth: 1.5 },
 };
 
-function Tree({ flatNodes, flatEdges }) {
+function Tree({ flatNodes, flatEdges, onNodeClick }) {
     const { nodes, edges } = useMemo(() => {
         if (!flatNodes || flatNodes.length === 0) return { nodes: [], edges: [] };
-        return getLayoutedElements(flatNodes, flatEdges, 'LR');
-    }, [flatNodes, flatEdges]);
+        const layouted = getLayoutedElements(flatNodes, flatEdges, 'LR');
+        // Add click handler to node data
+        return {
+            nodes: layouted.nodes.map(node => ({
+                ...node,
+                data: { ...node.data, onNodeClick }
+            })),
+            edges: layouted.edges
+        };
+    }, [flatNodes, flatEdges, onNodeClick]);
+
     return (
         <div style={{ width: '100%', height: '100%' }}>
             <ReactFlow

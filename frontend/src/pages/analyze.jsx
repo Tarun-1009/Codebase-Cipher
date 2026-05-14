@@ -1,6 +1,7 @@
 import Header from "../components/Headers/Header";
 import Tree from "../components/Canvas/Tree";
 import FileExplorer from "../components/Sidebar/FileExplorer";
+import Summary from "../components/Summary/Summary";
 import { useState, useEffect, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import RepoDetail from "../components/Sidebar/RepoDetail";
@@ -14,6 +15,7 @@ function Analyze() {
     const [repoData,setRepoData] = useState(null);
     const [loading,setLoading] = useState(true);
     const [error,setError] = useState(null);
+    const [selectedNode, setSelectedNode] = useState(null);
 
     const [viewMode,setViewMode] = useState('tree');
 
@@ -66,14 +68,14 @@ function Analyze() {
                 <div className="sidebar" style={{ display: 'flex', flexDirection: 'column' }}>
                     <div style={{ flex: 1, overflowY: 'auto' }}>
                         <span className="panel-label">Explorer</span>
-                        <FileExplorer nodes={[repoData]} />
+                        <FileExplorer nodes={[repoData]} onNodeClick={setSelectedNode} />
                     </div>
                     <RepoDetail totalFiles={totalFiles} languages={languages} />
                 </div>
                 <div className="tree-container">
                     {
                         viewMode === 'tree' ? (
-                            <Tree flatNodes={flatNodes} flatEdges={flatEdges} />
+                            <Tree flatNodes={flatNodes} flatEdges={flatEdges} onNodeClick={setSelectedNode} />
                         ) : (
                             <DependencyGraph repoData={repoData}/>
                         )
@@ -81,6 +83,7 @@ function Analyze() {
                 </div>
                 <div className="summary">
                     <span className="panel-label">Analysis</span>
+                    <Summary selectedNode={selectedNode} username={username} repo={repo} />
                 </div>
             </div>
         </div>
