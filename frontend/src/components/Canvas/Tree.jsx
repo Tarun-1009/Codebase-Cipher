@@ -3,7 +3,7 @@ import 'reactflow/dist/style.css';
 import './Tree.css';
 import flattenTree from '../../utils/treeFlattener';
 import { useMemo } from 'react';
-import getLayoutedElements from '../../utils/nodePosition';
+import getLayoutedElements from '../../utils/treeNodePosition';
 
 import { FaFolder } from 'react-icons/fa';
 import { resolveIcon } from '../../utils/icons';
