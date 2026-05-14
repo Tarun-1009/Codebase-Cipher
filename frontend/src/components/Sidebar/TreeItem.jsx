@@ -3,7 +3,7 @@ import { FaFolder, FaFolderOpen, FaChevronRight } from "react-icons/fa";
 import { resolveIcon } from "../../utils/icons";
 import "./Sidebar.css";
 
-function TreeItem({ item }) {
+function TreeItem({ item, onNodeClick }) {
     const [isOpen, setIsOpen] = useState(false);
     
     // Safety check: nodes from the backend have 'children' if they are folders
@@ -11,9 +11,23 @@ function TreeItem({ item }) {
 
     const { Icon, color } = resolveIcon(item.name);
 
+    const handleItemClick = () => {
+        onNodeClick?.({
+            name: item.name,
+            type: isFolder ? 'folder' : 'file',
+            path: item.path || item.name,
+            description: item.description || ""
+        });
+    };
+
     return (
         <div className="tree-item">
-            <div className="tree-item-header" onClick={() => isFolder && setIsOpen(!isOpen)}>
+            <div className="tree-item-header" onClick={() => {
+                if (isFolder) {
+                    setIsOpen(!isOpen);
+                }
+                handleItemClick();
+            }}>
                 {/* Toggle chevron (only visible for folders) */}
                 <div className={`tree-item-toggle ${isOpen ? 'open' : ''}`}>
                     {isFolder && <FaChevronRight size={10} />}
@@ -36,7 +50,7 @@ function TreeItem({ item }) {
             {isFolder && isOpen && (
                 <div className="tree-item-children">
                     {item.children.map((child) => (
-                        <TreeItem key={child.path || child.name} item={child} />
+                        <TreeItem key={child.path || child.name} item={child} onNodeClick={onNodeClick} />
                     ))}
                 </div>
             )}
