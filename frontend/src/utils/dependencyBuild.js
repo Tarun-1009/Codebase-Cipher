@@ -1,4 +1,4 @@
-import { resolveRelativePath } from "./resolveRelativePath";
+import resolveRelativePath from "./resolveRelativePath";
 function dependencyBuild(repoData) {
     const nodes={}
     const edges=[]
@@ -20,7 +20,7 @@ function dependencyBuild(repoData) {
         }
 
         // Only add edges for files (not folders)
-        if (!isFolder) {
+        if (!isFolder && node.dependencies) {
             node.dependencies.forEach(dependency => {
                 const absolutePath = resolveRelativePath(filePath, dependency);
                 const edgeId = `${nodeId}__${absolutePath}`;
@@ -52,6 +52,9 @@ function dependencyBuild(repoData) {
             });
         }
     }
-    return {nodes,edges}
+    if (repoData) {
+        traversal(repoData);
+    }
+    return {nodes: Object.values(nodes), edges}
 }
 export default dependencyBuild;

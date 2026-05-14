@@ -1,12 +1,8 @@
-import React from "react";
+import {useState,useEffect} from "react";
 import {
     ReactFlow,
-    addEdge,
     Background,
     Controls,
-    MiniMap,
-    useNodesState,
-    useEdgesState
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import dependencyBuild from "../../utils/dependencyBuild";
@@ -15,16 +11,18 @@ import dependencyBuild from "../../utils/dependencyBuild";
 function DependencyGraph({repoData}){
     const [nodes, setNodes] = useState([]);
     const [edges, setEdges] = useState([]);
-    const {nodes:depGraphNodes, edges:depGraphEdges} = dependencyBuild(repoData);
+    const result= dependencyBuild(repoData);
     
+    useEffect(() => {
+        setNodes(result.nodes);
+        setEdges(result.edges);
+    }, [repoData]);
     
     return (
         <div style={{ width: '100%', height: '100%' }}>
             <ReactFlow
-                nodes={depGraphNodes}
-                edges={depGraphEdges}
-                nodeTypes={nodeTypes}
-                defaultEdgeOptions={edgeOptions}
+                nodes={nodes}
+                edges={edges}
                 fitView
                 fitViewOptions={{ padding: 0.15 }}
                 minZoom={0.05}
