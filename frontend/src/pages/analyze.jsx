@@ -6,12 +6,16 @@ import { useParams } from "react-router-dom";
 import RepoDetail from "../components/Sidebar/RepoDetail";
 import flattenTree from "../utils/treeFlattener";
 import "./analyze.css";
+import DependencyGraph from "../components/Canvas/dependencyGraph";
+
 
 function Analyze() {
     const {username,repo} = useParams();
     const [repoData,setRepoData] = useState(null);
     const [loading,setLoading] = useState(true);
     const [error,setError] = useState(null);
+
+    const [viewMode,setViewMode] = useState('tree');
 
     useEffect(() => {
         fetch(`http://localhost:5000/analyze/${username}/${repo}`)
@@ -57,7 +61,7 @@ function Analyze() {
 
     return (
         <div className="analyze-root">
-            <Header />
+            <Header viewMode={viewMode} setViewMode={setViewMode}/>
             <div className="main-wrapper">
                 <div className="sidebar" style={{ display: 'flex', flexDirection: 'column' }}>
                     <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -67,7 +71,13 @@ function Analyze() {
                     <RepoDetail totalFiles={totalFiles} languages={languages} />
                 </div>
                 <div className="tree-container">
-                    <Tree flatNodes={flatNodes} flatEdges={flatEdges} />
+                    {
+                        viewMode === 'tree' ? (
+                            <Tree flatNodes={flatNodes} flatEdges={flatEdges} />
+                        ) : (
+                            <DependencyGraph repoData={repoData}/>
+                        )
+                    }
                 </div>
                 <div className="summary">
                     <span className="panel-label">Analysis</span>

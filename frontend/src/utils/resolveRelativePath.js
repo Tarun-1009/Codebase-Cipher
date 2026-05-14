@@ -19,4 +19,4 @@ function resolveRelativePath(currentPath, importPath) {
     return currentSegments.join('/') + '/' + remainingSegments.join('/');
 }
 
-export default resolveRelativePath
+export default resolveRelativePath;
