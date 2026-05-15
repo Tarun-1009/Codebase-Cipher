@@ -80,7 +80,7 @@ const nodeTypes = {
     external: ExternalNode,
 };
 
-function DependencyGraph({repoData}){
+function DependencyGraph({repoData, repoName}){
     const { nodes, edges } = useMemo(() => {
         if (!repoData) return { nodes: [], edges: [] };
         const result = dependencyBuild(repoData);
@@ -112,7 +112,7 @@ function DependencyGraph({repoData}){
                 
                 <Panel position="top-left" className="dep-panel-left">
                     <div className="dep-stat-card">
-                        <FaFolder color="#64748b" size={16} /> <span style={{fontWeight: 600, color: '#0f172a'}}>my-project</span>
+                        <FaFolder color="#64748b" size={16} /> <span style={{fontWeight: 600, color: '#0f172a'}}>{repoName}</span>
                     </div>
                     
                     <div className="dep-stat-card dep-col">

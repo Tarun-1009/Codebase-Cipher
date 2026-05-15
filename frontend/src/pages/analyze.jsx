@@ -77,7 +77,7 @@ function Analyze() {
                         viewMode === 'tree' ? (
                             <Tree flatNodes={flatNodes} flatEdges={flatEdges} onNodeClick={setSelectedNode} />
                         ) : (
-                            <DependencyGraph repoData={repoData}/>
+                            <DependencyGraph repoData={repoData} repoName={repo}/>
                         )
                     }
                 </div>
