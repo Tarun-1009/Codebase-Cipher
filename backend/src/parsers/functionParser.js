@@ -128,27 +128,3 @@ class FunctionParser {
 }
 
 module.exports = FunctionParser;
-
-    return functions;
-  }
-
-  static detectScope(content, index, name) {
-    // Check if exported
-    const beforeText = content.substring(Math.max(0, index - 100), index);
-    if (beforeText.includes('module.exports') || beforeText.includes('export')) {
-      return 'exported';
-    }
-    return 'private';
-  }
-
-  static detectPythonScope(content, index, name) {
-    // Check indentation (0 = top-level/exported)
-    const lineStart = content.lastIndexOf('\n', index) + 1;
-    const lineContent = content.substring(lineStart, index);
-    const indentation = lineContent.match(/^\s*/)[0].length;
-
-    return indentation === 0 ? 'exported' : 'private';
-  }
-}
-
-module.exports = FunctionParser;
