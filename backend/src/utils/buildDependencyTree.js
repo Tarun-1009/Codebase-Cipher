@@ -1,5 +1,12 @@
 const unzipper = require('unzipper');
 const axios = require('axios');
+const FunctionParser = require('../parsers/functionParser');
+const EndpointParser = require('../parsers/endpointParser');
+const LanguageDetector = require('../parsers/languageDetector');
+const CallGraphBuilder = require('../engines/callGraphBuilder');
+const AnalysisResult = require('../models/AnalysisResult');
+const FunctionNode = require('../models/FunctionNode');
+const EndpointNode = require('../models/EndpointNode');
 
 async function getDefaultBranch(username, repo) {
     try {
@@ -28,7 +35,6 @@ async function BuildDependencyTree(username, repo) {
     const branch = await getDefaultBranch(username, repo);
     const url = `https://github.com/${username}/${repo}/zipball/${branch}/`;
 
-
     let response;
     try {
         response = await axios({
@@ -50,11 +56,14 @@ async function BuildDependencyTree(username, repo) {
     }
 
     const tree = { name: repo, type: 'folder', children: [] };
+    const functions = [];
+    const endpoints = [];
+    const filesData = {}; // Store file content temporarily
 
     return new Promise((resolve, reject) => {
         response.data
             .pipe(unzipper.Parse())
-            .on('entry', (entry) => {
+            .on('entry', async (entry) => {
                 const pathSegments = entry.path.split('/');
                 pathSegments.shift(); 
 
@@ -63,15 +72,88 @@ async function BuildDependencyTree(username, repo) {
                     return;
                 }
 
-                addTree(tree, pathSegments, 'file', []);
-                entry.autodrain();
+                const fullPath = pathSegments.join('/');
+                const isFile = !entry.type.includes('Directory');
+                
+                addTree(tree, pathSegments, isFile ? 'file' : 'folder', []);
+
+                // Parse file content if it's a code file
+                if (isFile) {
+                    const language = LanguageDetector.detectLanguage(entry.path);
+                    
+                    if (language !== 'unknown') {
+                        let fileContent = '';
+                        
+                        entry.on('data', (chunk) => {
+                            fileContent += chunk.toString();
+                        });
+
+                        entry.on('end', () => {
+                            try {
+                                // Parse functions
+                                const fileFunctions = FunctionParser.parseFunctions(fileContent, language, fullPath);
+                                functions.push(...fileFunctions);
+
+                                // Parse endpoints
+                                const fileEndpoints = EndpointParser.parseEndpoints(fileContent, language, fullPath);
+                                endpoints.push(...fileEndpoints);
+                            } catch (parseErr) {
+                                console.warn(`Error parsing ${fullPath}:`, parseErr.message);
+                            }
+                        });
+                    } else {
+                        entry.autodrain();
+                    }
+                } else {
+                    entry.autodrain();
+                }
             })
-            .on('finish', () => resolve(tree))
+            .on('finish', () => {
+                try {
+                    // Build call graph (with minimal data - frontend will enrich)
+                    const callGraph = CallGraphBuilder.buildCallGraph(functions);
+
+                    // Create analysis result
+                    const result = new AnalysisResult({
+                        tree: tree,
+                        traceability: {
+                            functions: functions.map(f => f.toJSON()),
+                            callGraph: callGraph.toJSON(),
+                            metadata: {
+                                totalFunctions: functions.length,
+                                parsedLanguages: [...new Set(functions.map(f => f.language || 'unknown'))]
+                            }
+                        },
+                        apiEndpoints: {
+                            endpoints: endpoints.map(e => e.toJSON()),
+                            metadata: {
+                                totalEndpoints: endpoints.length,
+                                methods: calculateMethodCounts(endpoints),
+                                frameworks: [...new Set(endpoints.map(e => e.framework).filter(Boolean))]
+                            }
+                        }
+                    });
+
+                    resolve(result.toJSON());
+                } catch (err) {
+                    reject(new Error(`Error building analysis result: ${err.message}`));
+                }
+            })
             .on('error', (err) => reject(new Error(`Zip parse error: ${err.message}`)));
     });
 }
 
-function addTree(tree, pathSegments, type, dependency) {
+function calculateMethodCounts(endpoints) {
+    const counts = { GET: 0, POST: 0, PUT: 0, DELETE: 0, PATCH: 0 };
+    endpoints.forEach(ep => {
+        if (counts.hasOwnProperty(ep.method)) {
+            counts[ep.method]++;
+        }
+    });
+    return counts;
+}
+
+function addTree(tree, pathSegments, type) {
     let current = tree;
     for (let i = 0; i < pathSegments.length; i++) {
         const seg = pathSegments[i];
@@ -86,9 +168,6 @@ function addTree(tree, pathSegments, type, dependency) {
                 type: isLast ? type : 'folder',
                 ...(!isLast && { children: [] }),
             };
-            if (isLast && type === 'file') {
-                existingChild.dependencies = dependency;
-            }
             current.children.push(existingChild);
         }
         current = existingChild;
