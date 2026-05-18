@@ -15,15 +15,14 @@ app.get("/", (req, res) => {
 });
 
 
-//temporary - data directly send to frontend just to check
+//Returns: { tree, traceability, apiEndpoints } - 3-object analysis response
 
 app.get("/analyze/:username/:repo",async (req,res)=>{
 
     const {username,repo}=req.params;
     try {
-        // const tree=await getRepo(username,repo);
-        const tree= await BuildDependencyTree(username,repo);
-        res.json(tree);
+        const analysisResult = await BuildDependencyTree(username,repo);
+        res.json(analysisResult);
     } catch (error) {
         res.status(500).json({error:error.message});
     }
