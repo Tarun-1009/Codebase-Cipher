@@ -13,13 +13,18 @@ function Analyze() {
 
     useEffect(() => {
         fetch(`http://localhost:5000/analyze/${username}/${repo}`)
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                return res.json();
+            })
             .then(data => {
                 setAnalysisData(data);
             })
             .catch(err => {
-                console.error('Error:', err);
-                setError(err.message || 'Failed to analyze');
+                console.error('Fetch error:', err);
+                setError(err.message || 'Failed to analyze repository');
             })
             .finally(() => setLoading(false))
     }, [username, repo]);
