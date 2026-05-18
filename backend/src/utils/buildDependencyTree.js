@@ -58,12 +58,12 @@ async function BuildDependencyTree(username, repo) {
     const tree = { name: repo, type: 'folder', children: [] };
     const functions = [];
     const endpoints = [];
-    const filesData = {}; // Store file content temporarily
+    const parsePromises = [];
 
     return new Promise((resolve, reject) => {
         response.data
             .pipe(unzipper.Parse())
-            .on('entry', async (entry) => {
+            .on('entry', (entry) => {
                 const pathSegments = entry.path.split('/');
                 pathSegments.shift(); 
 
@@ -88,19 +88,27 @@ async function BuildDependencyTree(username, repo) {
                             fileContent += chunk.toString();
                         });
 
-                        entry.on('end', () => {
-                            try {
-                                // Parse functions
-                                const fileFunctions = FunctionParser.parseFunctions(fileContent, language, fullPath);
-                                functions.push(...fileFunctions);
+                        // Create async parse promise
+                        const parsePromise = new Promise((resolveFile) => {
+                            entry.on('end', async () => {
+                                try {
+                                    // Parse functions
+                                    const fileFunctions = await FunctionParser.parseFunctions(fileContent, language, fullPath);
+                                    functions.push(...fileFunctions);
 
-                                // Parse endpoints
-                                const fileEndpoints = EndpointParser.parseEndpoints(fileContent, language, fullPath);
-                                endpoints.push(...fileEndpoints);
-                            } catch (parseErr) {
-                                console.warn(`Error parsing ${fullPath}:`, parseErr.message);
-                            }
+                                    // Parse endpoints
+                                    const fileEndpoints = await EndpointParser.parseEndpoints(fileContent, language, fullPath);
+                                    endpoints.push(...fileEndpoints);
+                                    
+                                    resolveFile();
+                                } catch (parseErr) {
+                                    console.warn(`Error parsing ${fullPath}:`, parseErr.message);
+                                    resolveFile(); // Don't reject, just warn
+                                }
+                            });
                         });
+
+                        parsePromises.push(parsePromise);
                     } else {
                         entry.autodrain();
                     }
@@ -108,8 +116,11 @@ async function BuildDependencyTree(username, repo) {
                     entry.autodrain();
                 }
             })
-            .on('finish', () => {
+            .on('finish', async () => {
                 try {
+                    // Wait for all parse operations to complete
+                    await Promise.all(parsePromises);
+
                     // Build call graph (with minimal data - frontend will enrich)
                     const callGraph = CallGraphBuilder.buildCallGraph(functions);
 
