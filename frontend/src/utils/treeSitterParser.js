@@ -1,152 +1,348 @@
 /**
  * Tree Sitter Parser Wrapper (Frontend)
  * Provides AST parsing and analysis capabilities
- * Uses web-tree-sitter for client-side parsing
+ * 100% Web-Tree-Sitter based, no regex fallbacks
  */
 
-// Fallback regex-based extraction for when tree-sitter is unavailable
-const CALL_PATTERNS = {
-  javascript: /(\w+)\s*\(/g,
-  python: /(\w+)\s*\(/g,
-  java: /(\w+)\s*\(/g,
-  go: /(\w+)\s*\(/g
-};
-
-const FUNCTION_PATTERNS = {
-  javascript: /(?:async\s+)?function\s+(\w+)|const\s+(\w+)\s*=|(\w+)\s*\(/g,
-  python: /def\s+(\w+)/g,
-  java: /(?:public|private|protected)?\s+\w+\s+(\w+)\s*\(/g,
-  go: /func\s+(\w+)/g
-};
+// Dynamic import for web-tree-sitter
+let Parser = null;
+let Languages = {};
 
 class TreeSitterParser {
-  static parserCache = new Map();
+  static initialized = false;
 
-  static async initializeParser(language) {
-    if (this.parserCache.has(language)) {
-      return this.parserCache.get(language);
+  static async initialize() {
+    if (this.initialized) return;
+
+    try {
+      // Import web-tree-sitter dynamically
+      const wasmModule = await import('web-tree-sitter');
+      Parser = wasmModule.default;
+      
+      // Initialize parser
+      await Parser.init();
+      
+      // Load language modules
+      // These would need to be served as WASM files in production
+      console.log('Tree-sitter parser initialized');
+      this.initialized = true;
+    } catch (error) {
+      console.error('Failed to initialize tree-sitter:', error);
+      throw error;
+    }
+  }
+
+  static async parseCode(content, language = 'javascript') {
+    if (!this.initialized) {
+      await this.initialize();
     }
 
-    console.log(`Initializing parser for language: ${language}`);
+    const parser = new Parser();
     
-    // In production with web-tree-sitter installed:
-    // const Parser = require('web-tree-sitter');
-    // await Parser.init();
-    // const parser = new Parser();
-    // parser.setLanguage(await Parser.Language.load(`path/to/${language}.wasm`));
-    
-    const parser = {
-      language,
-      ready: true,
-      type: 'regex-fallback',
-      note: 'Using regex fallback. For full AST support, configure web-tree-sitter.'
-    };
+    // Set language based on file type
+    // This would require language WASM files
+    const langModule = this.getLanguageModule(language);
+    if (!langModule) {
+      throw new Error(`Language ${language} not supported`);
+    }
 
-    this.parserCache.set(language, parser);
-    return parser;
+    parser.setLanguage(langModule);
+    const tree = parser.parse(content);
+    
+    return {
+      tree: tree.rootNode,
+      content: content,
+      language: language
+    };
   }
 
   static extractFunctionCalls(content, language = 'javascript') {
-    const pattern = CALL_PATTERNS[language] || CALL_PATTERNS.javascript;
-    const calls = [];
-    let match;
+    const ast = this.parseCodeSync(content, language);
+    const calls = new Set();
 
-    while ((match = pattern.exec(content)) !== null) {
-      const call = match[1];
-      if (call && !this.isKeyword(call)) {
-        calls.push(call);
+    this.traverseAST(ast.tree, (node) => {
+      // JavaScript/TypeScript function calls
+      if (language === 'javascript' && node.type === 'call_expression') {
+        const func = node.childForFieldName('function');
+        if (func) {
+          calls.add(func.text);
+        }
       }
-    }
+      // Python function calls
+      else if (language === 'python' && node.type === 'call') {
+        const func = node.childForFieldName('function');
+        if (func) {
+          calls.add(func.text);
+        }
+      }
+      // Java method calls
+      else if (language === 'java' && node.type === 'method_invocation') {
+        const name = node.childForFieldName('name');
+        if (name) {
+          calls.add(name.text);
+        }
+      }
+    });
 
-    return [...new Set(calls)]; // Remove duplicates
+    return Array.from(calls);
   }
 
   static extractFunctionDefinitions(content, language = 'javascript') {
-    const pattern = FUNCTION_PATTERNS[language] || FUNCTION_PATTERNS.javascript;
+    const ast = this.parseCodeSync(content, language);
     const functions = [];
-    let match;
 
-    while ((match = pattern.exec(content)) !== null) {
-      const func = match[1] || match[2] || match[3];
-      if (func && !this.isKeyword(func)) {
-        functions.push({
-          name: func,
-          startPos: match.index,
-          content: this.extractFunctionBody(content, match.index, language)
-        });
+    this.traverseAST(ast.tree, (node) => {
+      if (language === 'javascript') {
+        if (node.type === 'function_declaration') {
+          const nameNode = node.childForFieldName('name');
+          if (nameNode) {
+            functions.push({
+              name: nameNode.text,
+              type: 'function',
+              line: node.startPosition.row + 1,
+              column: node.startPosition.column,
+              endLine: node.endPosition.row + 1,
+              node: node
+            });
+          }
+        } else if (node.type === 'arrow_function') {
+          const parent = node.parent;
+          if (parent && parent.type === 'variable_declarator') {
+            const nameNode = parent.childForFieldName('name');
+            if (nameNode) {
+              functions.push({
+                name: nameNode.text,
+                type: 'arrow',
+                line: node.startPosition.row + 1,
+                column: node.startPosition.column,
+                endLine: node.endPosition.row + 1,
+                node: node
+              });
+            }
+          }
+        } else if (node.type === 'method_definition') {
+          const nameNode = node.childForFieldName('name');
+          if (nameNode) {
+            functions.push({
+              name: nameNode.text,
+              type: 'method',
+              line: node.startPosition.row + 1,
+              column: node.startPosition.column,
+              endLine: node.endPosition.row + 1,
+              node: node
+            });
+          }
+        }
+      } else if (language === 'python') {
+        if (node.type === 'function_definition') {
+          const nameNode = node.childForFieldName('name');
+          if (nameNode) {
+            functions.push({
+              name: nameNode.text,
+              type: 'function',
+              line: node.startPosition.row + 1,
+              column: node.startPosition.column,
+              endLine: node.endPosition.row + 1,
+              node: node
+            });
+          }
+        }
+      } else if (language === 'java') {
+        if (node.type === 'method_declaration') {
+          const nameNode = node.childForFieldName('name');
+          if (nameNode) {
+            functions.push({
+              name: nameNode.text,
+              type: 'method',
+              line: node.startPosition.row + 1,
+              column: node.startPosition.column,
+              endLine: node.endPosition.row + 1,
+              node: node
+            });
+          }
+        }
       }
-    }
+    });
 
     return functions;
   }
 
   static buildAST(content, language = 'javascript') {
-    // Fallback AST representation using regex analysis
+    const ast = this.parseCodeSync(content, language);
     const functions = this.extractFunctionDefinitions(content, language);
     const calls = this.extractFunctionCalls(content, language);
+    const imports = this.detectImports(content, language);
 
     return {
       type: 'program',
-      language,
-      parsed: true,
+      language: language,
+      root: ast.tree,
       functions: functions,
       calls: calls,
+      imports: imports,
       metadata: {
         totalFunctions: functions.length,
         totalCalls: calls.length,
+        totalImports: imports.length,
         languages: [language]
       }
     };
   }
 
-  static extractFunctionBody(content, startIndex, language) {
-    // Find the function body by matching braces
-    let braceCount = 0;
-    let inBody = false;
-    let startPos = startIndex;
+  static extractSourceCode(node, content) {
+    const startIndex = node.startIndex;
+    const endIndex = node.endIndex;
+    return content.substring(startIndex, endIndex);
+  }
 
-    for (let i = startIndex; i < content.length; i++) {
-      if (content[i] === '{') {
-        if (!inBody) {
-          inBody = true;
-          startPos = i;
+  static detectImports(content, language = 'javascript') {
+    const ast = this.parseCodeSync(content, language);
+    const imports = [];
+
+    this.traverseAST(ast.tree, (node) => {
+      if (language === 'javascript') {
+        if (node.type === 'import_statement') {
+          const source = node.childForFieldName('source');
+          if (source) {
+            imports.push({
+              type: 'import',
+              source: source.text.replace(/^["'`]|["'`]$/g, ''),
+              line: node.startPosition.row + 1
+            });
+          }
         }
-        braceCount++;
-      } else if (content[i] === '}') {
-        braceCount--;
-        if (braceCount === 0 && inBody) {
-          return content.substring(startPos, i + 1);
+      } else if (language === 'python') {
+        if (node.type === 'import_statement') {
+          const name = node.childForFieldName('name');
+          if (name) {
+            imports.push({
+              type: 'import',
+              source: name.text,
+              line: node.startPosition.row + 1
+            });
+          }
+        }
+      } else if (language === 'java') {
+        if (node.type === 'import_declaration') {
+          const name = node.childForFieldName('name');
+          if (name) {
+            imports.push({
+              type: 'import',
+              source: name.text,
+              line: node.startPosition.row + 1
+            });
+          }
         }
       }
+    });
+
+    return imports;
+  }
+
+  static analyzeComplexity(content, language = 'javascript') {
+    const ast = this.buildAST(content, language);
+    const complexityData = {};
+
+    ast.functions.forEach(func => {
+      let complexity = 1;
+      let branches = 0;
+
+      // Count decision points
+      this.traverseAST(func.node, (node) => {
+        if (['if_statement', 'switch_statement', 'conditional_expression'].includes(node.type)) {
+          complexity++;
+          branches++;
+        }
+        if (['for_statement', 'while_statement', 'do_statement'].includes(node.type)) {
+          complexity++;
+        }
+        if (node.type === 'try_statement') {
+          complexity += 2;
+        }
+      });
+
+      complexityData[func.name] = {
+        cyclomatic: complexity,
+        branches: branches,
+        line: func.line
+      };
+    });
+
+    return complexityData;
+  }
+
+  static traverseAST(node, callback) {
+    callback(node);
+    for (let i = 0; i < node.childCount; i++) {
+      this.traverseAST(node.child(i), callback);
+    }
+  }
+
+  static parseCodeSync(content, language) {
+    // Synchronous parse - must be called after Parser is loaded
+    if (!Parser) {
+      throw new Error('Parser not initialized. Call initialize() first.');
     }
 
-    return '';
-  }
+    const parser = new Parser();
+    const langModule = this.getLanguageModule(language);
+    
+    if (!langModule) {
+      throw new Error(`Language ${language} not supported`);
+    }
 
-  static traverseAST(ast, visitor) {
-    // Generic AST traversal
-    const visit = (node, parent = null) => {
-      if (visitor[node.type]) {
-        visitor[node.type](node, parent);
-      }
+    parser.setLanguage(langModule);
+    const tree = parser.parse(content);
 
-      if (node.children) {
-        node.children.forEach(child => visit(child, node));
-      }
+    return {
+      tree: tree.rootNode,
+      content: content,
+      language: language
     };
-
-    visit(ast);
   }
 
-  static isKeyword(word) {
-    const keywords = new Set([
-      'if', 'else', 'for', 'while', 'do', 'return', 'throw', 'try', 'catch',
-      'finally', 'switch', 'case', 'break', 'continue', 'function', 'class',
-      'const', 'let', 'var', 'new', 'delete', 'typeof', 'instanceof',
-      'def', 'class', 'import', 'from', 'as', 'with', 'import', 'export'
-    ]);
-    return keywords.has(word);
+  static getLanguageModule(language) {
+    // Return language module or null if not available
+    // In production, these would be dynamically loaded WASM modules
+    if (Languages[language]) {
+      return Languages[language];
+    }
+    return null;
   }
+
+  static setLanguageModule(language, module) {
+    Languages[language] = module;
+  }
+
+  static async findSymbolAtPosition(content, language, line, column) {
+    const ast = await this.parseCode(content, language);
+    const lineOffset = this.getLineOffset(content, line);
+    const position = lineOffset + column;
+
+    let nodeAtPosition = null;
+
+    this.traverseAST(ast.tree, (node) => {
+      if (node.startIndex <= position && position <= node.endIndex) {
+        if (!nodeAtPosition || node.startIndex > nodeAtPosition.startIndex) {
+          nodeAtPosition = node;
+        }
+      }
+    });
+
+    return nodeAtPosition;
+  }
+
+  static getLineOffset(content, line) {
+    const lines = content.split('\n');
+    let offset = 0;
+    for (let i = 0; i < Math.min(line, lines.length); i++) {
+      offset += lines[i].length + 1;
+    }
+    return offset;
+  }
+}
+
+export default TreeSitterParser;
 
   static analyzeComplexity(ast) {
     // Calculate cyclomatic complexity from AST
