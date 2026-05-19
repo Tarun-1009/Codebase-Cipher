@@ -3,8 +3,8 @@ const axios = require('axios');
 const FunctionParser = require('../parsers/functionParser');
 const EndpointParser = require('../parsers/endpointParser');
 const LanguageDetector = require('../parsers/languageDetector');
+const ImportDetector = require('../parsers/importDetector');
 const CallGraphBuilder = require('../engines/callGraphBuilder');
-const AnalysisResult = require('../models/AnalysisResult');
 const FunctionNode = require('../models/FunctionNode');
 const EndpointNode = require('../models/EndpointNode');
 
@@ -55,17 +55,27 @@ async function BuildDependencyTree(username, repo) {
         throw new Error(`Failed to fetch repository: ${err.message}`);
     }
 
-    const tree = { name: repo, type: 'folder', children: [] };
+    const tree = { 
+        id: 'root',
+        name: repo, 
+        type: 'folder', 
+        path: '/',
+        children: [] 
+    };
+    
     const functions = [];
     const endpoints = [];
+    const fileMap = new Map(); // Map to store file nodes with their content
     const parsePromises = [];
+    const frameworks = new Set();
+    let totalImports = 0;
 
     return new Promise((resolve, reject) => {
         response.data
             .pipe(unzipper.Parse())
             .on('entry', (entry) => {
                 const pathSegments = entry.path.split('/');
-                pathSegments.shift(); 
+                pathSegments.shift(); // Remove root folder name
 
                 if (pathSegments.length === 0 || pathSegments[0] === '') {
                     entry.autodrain();
@@ -75,8 +85,6 @@ async function BuildDependencyTree(username, repo) {
                 const fullPath = pathSegments.join('/');
                 const isFile = !entry.type.includes('Directory');
                 
-                addTree(tree, pathSegments, isFile ? 'file' : 'folder', []);
-
                 // Parse file content if it's a code file
                 if (isFile) {
                     const language = LanguageDetector.detectLanguage(entry.path);
@@ -92,18 +100,53 @@ async function BuildDependencyTree(username, repo) {
                         const parsePromise = new Promise((resolveFile) => {
                             entry.on('end', async () => {
                                 try {
+                                    // Detect imports
+                                    const imports = ImportDetector.detectImports(fileContent, language);
+                                    totalImports += imports.length;
+                                    
+                                    // Detect file role
+                                    const role = ImportDetector.detectFileRole(fullPath, fileContent);
+
                                     // Parse functions
                                     const fileFunctions = await FunctionParser.parseFunctions(fileContent, language, fullPath);
+                                    
+                                    // Set proper IDs and language for functions
+                                    fileFunctions.forEach(func => {
+                                        func.id = `${fullPath}#${func.name}`;
+                                        func.file = fullPath;
+                                        func.language = language;
+                                    });
+                                    
                                     functions.push(...fileFunctions);
 
                                     // Parse endpoints
                                     const fileEndpoints = await EndpointParser.parseEndpoints(fileContent, language, fullPath);
+                                    
+                                    // Set proper IDs and handler references
+                                    fileEndpoints.forEach(endpoint => {
+                                        endpoint.id = `${endpoint.method}:${endpoint.path}`;
+                                        endpoint.handlerFile = fullPath;
+                                        endpoint.handlerFunctionId = fileFunctions.length > 0 ? fileFunctions[0].id : '';
+                                    });
+                                    
                                     endpoints.push(...fileEndpoints);
                                     
+                                    // Detect frameworks
+                                    const endpointFrameworks = fileEndpoints.map(e => e.framework).filter(Boolean);
+                                    endpointFrameworks.forEach(fw => frameworks.add(fw));
+
+                                    // Store file info for tree building
+                                    fileMap.set(fullPath, {
+                                        language,
+                                        role,
+                                        imports,
+                                        functions: fileFunctions.map(f => f.toJSON())
+                                    });
+
                                     resolveFile();
                                 } catch (parseErr) {
                                     console.warn(`Error parsing ${fullPath}:`, parseErr.message);
-                                    resolveFile(); // Don't reject, just warn
+                                    resolveFile();
                                 }
                             });
                         });
@@ -121,31 +164,26 @@ async function BuildDependencyTree(username, repo) {
                     // Wait for all parse operations to complete
                     await Promise.all(parsePromises);
 
-                    // Build call graph (with minimal data - frontend will enrich)
-                    const callGraph = CallGraphBuilder.buildCallGraph(functions);
+                    // Build tree with embedded functions and imports
+                    buildTreeWithFiles(tree, fileMap);
 
-                    // Create analysis result
-                    const result = new AnalysisResult({
-                        tree: tree,
-                        traceability: {
-                            functions: functions.map(f => f.toJSON()),
-                            callGraph: callGraph.toJSON(),
-                            metadata: {
-                                totalFunctions: functions.length,
-                                parsedLanguages: [...new Set(functions.map(f => f.language || 'unknown'))]
-                            }
+                    // Create new response format
+                    const result = {
+                        repository: {
+                            name: repo,
+                            frameworks: [...frameworks]
                         },
-                        apiEndpoints: {
-                            endpoints: endpoints.map(e => e.toJSON()),
-                            metadata: {
-                                totalEndpoints: endpoints.length,
-                                methods: calculateMethodCounts(endpoints),
-                                frameworks: [...new Set(endpoints.map(e => e.framework).filter(Boolean))]
-                            }
+                        tree: tree,
+                        apiEndpoints: endpoints.map(e => e.toJSON()),
+                        metadata: {
+                            totalFiles: fileMap.size,
+                            totalFunctions: functions.length,
+                            totalImports: totalImports,
+                            totalEndpoints: endpoints.length
                         }
-                    });
+                    };
 
-                    resolve(result.toJSON());
+                    resolve(result);
                 } catch (err) {
                     reject(new Error(`Error building analysis result: ${err.message}`));
                 }
@@ -154,34 +192,58 @@ async function BuildDependencyTree(username, repo) {
     });
 }
 
-function calculateMethodCounts(endpoints) {
-    const counts = { GET: 0, POST: 0, PUT: 0, DELETE: 0, PATCH: 0 };
-    endpoints.forEach(ep => {
-        if (counts.hasOwnProperty(ep.method)) {
-            counts[ep.method]++;
-        }
+function buildTreeWithFiles(tree, fileMap) {
+    // Build tree structure from file map
+    fileMap.forEach((fileInfo, filePath) => {
+        const pathSegments = filePath.split('/');
+        addTreeNode(tree, pathSegments, fileInfo);
     });
-    return counts;
 }
 
-function addTree(tree, pathSegments, type) {
+function addTreeNode(tree, pathSegments, fileInfo) {
     let current = tree;
+    
     for (let i = 0; i < pathSegments.length; i++) {
         const seg = pathSegments[i];
         if (!seg) continue;
 
         const isLast = i === pathSegments.length - 1;
+        const fullPath = pathSegments.slice(0, i + 1).join('/');
 
         let existingChild = current.children.find(child => child.name === seg);
+        
         if (!existingChild) {
-            existingChild = {
-                name: seg,
-                type: isLast ? type : 'folder',
-                ...(!isLast && { children: [] }),
-            };
+            if (isLast) {
+                // File node
+                existingChild = {
+                    id: fullPath,
+                    name: seg,
+                    type: 'file',
+                    path: fullPath,
+                    language: fileInfo.language,
+                    role: fileInfo.role,
+                    imports: fileInfo.imports,
+                    functions: fileInfo.functions
+                };
+            } else {
+                // Folder node
+                existingChild = {
+                    id: fullPath,
+                    name: seg,
+                    type: 'folder',
+                    path: fullPath,
+                    children: []
+                };
+            }
             current.children.push(existingChild);
         }
-        current = existingChild;
+        
+        if (!isLast) {
+            if (!existingChild.children) {
+                existingChild.children = [];
+            }
+            current = existingChild;
+        }
     }
 }
 
