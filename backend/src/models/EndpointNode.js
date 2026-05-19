@@ -1,15 +1,20 @@
 /**
  * EndpointNode Model
  * Represents an API endpoint declaration
+ * ID format: METHOD:/path (e.g., GET:/, POST:/api/users)
  */
 class EndpointNode {
   constructor(data = {}) {
-    this.id = data.id || `endpoint_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    this.path = data.path || '';
     this.method = data.method || 'GET'; // GET, POST, PUT, DELETE, PATCH
+    this.path = data.path || '';
+    // Generate ID in format: METHOD:/path
+    this.id = data.id || `${this.method}:${this.path}`;
+    
     this.handler = data.handler || '';
+    this.handlerFunctionId = data.handlerFunctionId || ''; // Format: file#functionName
     this.handlerFile = data.handlerFile || '';
-    this.handlerLine = data.handlerLine || 0;
+    this.line = data.line || 0;
+    
     this.middleware = data.middleware || [];
     this.requestSchema = data.requestSchema || {
       params: {},
@@ -30,15 +35,9 @@ class EndpointNode {
       id: this.id,
       path: this.path,
       method: this.method,
-      handler: this.handler,
+      handlerFunctionId: this.handlerFunctionId,
       handlerFile: this.handlerFile,
-      handlerLine: this.handlerLine,
-      middleware: this.middleware,
-      requestSchema: this.requestSchema,
-      responseSchema: this.responseSchema,
-      description: this.description,
-      tags: this.tags,
-      framework: this.framework
+      line: this.line
     };
   }
 }
