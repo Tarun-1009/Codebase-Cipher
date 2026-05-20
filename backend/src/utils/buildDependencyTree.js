@@ -1,12 +1,18 @@
 const unzipper = require('unzipper');
 const axios = require('axios');
-const { extractDependencies } = require('./extractDependencies');
+const FunctionParser = require('../parsers/functionParser');
+const EndpointParser = require('../parsers/endpointParser');
+const LanguageDetector = require('../parsers/languageDetector');
+const ImportDetector = require('../parsers/importDetector');
+const CallGraphBuilder = require('../engines/callGraphBuilder');
+const FunctionNode = require('../models/FunctionNode');
+const EndpointNode = require('../models/EndpointNode');
 
 async function getDefaultBranch(username, repo) {
     try {
         const response = await axios.get(
             `https://api.github.com/repos/${username}/${repo}`,
-            { headers: { 'User-Agent': 'CodeBase_Cipher' } }
+            { headers: { 'User-Agent': 'CodeBase_Cipher'}}
         );
         return response.data.default_branch || 'main';
     } catch (err) {
@@ -29,15 +35,14 @@ async function BuildDependencyTree(username, repo) {
     const branch = await getDefaultBranch(username, repo);
     const url = `https://github.com/${username}/${repo}/zipball/${branch}/`;
 
-
     let response;
     try {
         response = await axios({
             method: 'get',
             url,
             responseType: 'stream',
-            maxRedirects: 5,
-            headers: { 'User-Agent': 'CodeBase_Cipher' },
+            maxRedirects: 5,          
+            headers: {'User-Agent': 'CodeBase_Cipher'},
         });
     } catch (err) {
         const status = err?.response?.status;
@@ -50,81 +55,195 @@ async function BuildDependencyTree(username, repo) {
         throw new Error(`Failed to fetch repository: ${err.message}`);
     }
 
-    const tree = { name: repo, type: 'folder', children: [] };
+    const tree = { 
+        id: 'root',
+        name: repo, 
+        type: 'folder', 
+        path: '/',
+        children: [] 
+    };
+    
+    const functions = [];
+    const endpoints = [];
+    const fileMap = new Map(); // Map to store file nodes with their content
+    const parsePromises = [];
+    const frameworks = new Set();
+    let totalImports = 0;
 
     return new Promise((resolve, reject) => {
-        const filePromises = [];
-
         response.data
             .pipe(unzipper.Parse())
             .on('entry', (entry) => {
                 const pathSegments = entry.path.split('/');
-                pathSegments.shift();
+                pathSegments.shift(); // Remove root folder name
 
                 if (pathSegments.length === 0 || pathSegments[0] === '') {
                     entry.autodrain();
                     return;
                 }
 
-                if (entry.type === 'File') {
-                    const fileName = pathSegments[pathSegments.length - 1];
-                    const isSupported = /\.(js|jsx|ts|tsx|py|java|html)$/.test(fileName);
-
-                    if (isSupported) {
-                        const p = entry.buffer().then(buffer => {
-                            const dependencies = extractDependencies(buffer.toString('utf-8'), pathSegments);
-                            addTree(tree, pathSegments, 'file', dependencies);
-                        }).catch(err => {
-                            console.warn(`Failed to buffer file ${fileName}:`, err.message);
-                            addTree(tree, pathSegments, 'file', []);
+                const fullPath = pathSegments.join('/');
+                const isFile = !entry.type.includes('Directory');
+                
+                // Parse file content if it's a code file
+                if (isFile) {
+                    const language = LanguageDetector.detectLanguage(entry.path);
+                    
+                    if (language !== 'unknown') {
+                        let fileContent = '';
+                        
+                        entry.on('data', (chunk) => {
+                            fileContent += chunk.toString();
                         });
-                        filePromises.push(p);
+
+                        // Create async parse promise
+                        const parsePromise = new Promise((resolveFile) => {
+                            entry.on('end', async () => {
+                                try {
+                                    // Detect imports
+                                    const imports = ImportDetector.detectImports(fileContent, language);
+                                    totalImports += imports.length;
+                                    
+                                    // Detect file role
+                                    const role = ImportDetector.detectFileRole(fullPath, fileContent);
+
+                                    // Parse functions
+                                    const fileFunctions = await FunctionParser.parseFunctions(fileContent, language, fullPath);
+                                    
+                                    // Set proper IDs and language for functions
+                                    fileFunctions.forEach(func => {
+                                        func.id = `${fullPath}#${func.name}`;
+                                        func.file = fullPath;
+                                        func.language = language;
+                                    });
+                                    
+                                    functions.push(...fileFunctions);
+
+                                    // Parse endpoints
+                                    const fileEndpoints = await EndpointParser.parseEndpoints(fileContent, language, fullPath);
+                                    
+                                    // Set proper IDs and handler references
+                                    fileEndpoints.forEach(endpoint => {
+                                        endpoint.id = `${endpoint.method}:${endpoint.path}`;
+                                        endpoint.handlerFile = fullPath;
+                                        endpoint.handlerFunctionId = fileFunctions.length > 0 ? fileFunctions[0].id : '';
+                                    });
+                                    
+                                    endpoints.push(...fileEndpoints);
+                                    
+                                    // Detect frameworks
+                                    const endpointFrameworks = fileEndpoints.map(e => e.framework).filter(Boolean);
+                                    endpointFrameworks.forEach(fw => frameworks.add(fw));
+
+                                    // Store file info for tree building
+                                    fileMap.set(fullPath, {
+                                        language,
+                                        role,
+                                        imports,
+                                        functions: fileFunctions.map(f => f.toJSON())
+                                    });
+
+                                    resolveFile();
+                                } catch (parseErr) {
+                                    console.warn(`Error parsing ${fullPath}:`, parseErr.message);
+                                    resolveFile();
+                                }
+                            });
+                        });
+
+                        parsePromises.push(parsePromise);
                     } else {
-                        addTree(tree, pathSegments, 'file', []);
                         entry.autodrain();
                     }
                 } else {
                     entry.autodrain();
                 }
             })
-            .on('finish', () => {
-                Promise.all(filePromises)
-                    .then(() => resolve(tree))
-                    .catch(err => reject(new Error(`Error resolving files: ${err.message}`)));
+            .on('finish', async () => {
+                try {
+                    // Wait for all parse operations to complete
+                    await Promise.all(parsePromises);
+
+                    // Build tree with embedded functions and imports
+                    buildTreeWithFiles(tree, fileMap);
+
+                    // Create new response format
+                    const result = {
+                        repository: {
+                            name: repo,
+                            frameworks: [...frameworks]
+                        },
+                        tree: tree,
+                        apiEndpoints: endpoints.map(e => e.toJSON()),
+                        metadata: {
+                            totalFiles: fileMap.size,
+                            totalFunctions: functions.length,
+                            totalImports: totalImports,
+                            totalEndpoints: endpoints.length
+                        }
+                    };
+
+                    resolve(result);
+                } catch (err) {
+                    reject(new Error(`Error building analysis result: ${err.message}`));
+                }
             })
             .on('error', (err) => reject(new Error(`Zip parse error: ${err.message}`)));
     });
 }
 
-function addTree(tree, pathSegments, type, dependency) {
+function buildTreeWithFiles(tree, fileMap) {
+    // Build tree structure from file map
+    fileMap.forEach((fileInfo, filePath) => {
+        const pathSegments = filePath.split('/');
+        addTreeNode(tree, pathSegments, fileInfo);
+    });
+}
+
+function addTreeNode(tree, pathSegments, fileInfo) {
     let current = tree;
-    let currentPath = "";
+    
     for (let i = 0; i < pathSegments.length; i++) {
         const seg = pathSegments[i];
         if (!seg) continue;
 
         const isLast = i === pathSegments.length - 1;
-        currentPath = currentPath === "" ? seg : `${currentPath}/${seg}`;
+        const fullPath = pathSegments.slice(0, i + 1).join('/');
 
         let existingChild = current.children.find(child => child.name === seg);
+        
         if (!existingChild) {
-            existingChild = {
-                name: seg,
-                path:currentPath,
-                type: isLast ? type : 'folder',
-            };
-            if (!isLast || type === 'folder') {
-                existingChild.children = [];
+            if (isLast) {
+                // File node
+                existingChild = {
+                    id: fullPath,
+                    name: seg,
+                    type: 'file',
+                    path: fullPath,
+                    language: fileInfo.language,
+                    role: fileInfo.role,
+                    imports: fileInfo.imports,
+                    functions: fileInfo.functions
+                };
+            } else {
+                // Folder node
+                existingChild = {
+                    id: fullPath,
+                    name: seg,
+                    type: 'folder',
+                    path: fullPath,
+                    children: []
+                };
             }
-
-            // If it's the target file, attach dependencies
-            if (isLast && type === 'file') {
-                existingChild.dependencies = dependency;
-            }
-
             current.children.push(existingChild);
         }
-        current = existingChild;
+        
+        if (!isLast) {
+            if (!existingChild.children) {
+                existingChild.children = [];
+            }
+            current = existingChild;
+        }
     }
 }
 
