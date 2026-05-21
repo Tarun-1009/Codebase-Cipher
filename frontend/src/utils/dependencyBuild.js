@@ -22,8 +22,9 @@ function dependencyBuild(repoData) {
                 };
             }
 
-            if (node.dependencies) {
-                node.dependencies.forEach(dependency => {
+            const deps = node.imports || node.dependencies;
+            if (deps) {
+                deps.forEach(dependency => {
                     const absolutePath = resolveRelativePath(filePath, dependency);
                     const edgeId = `${nodeId}__${absolutePath}`;
                     edges.push({

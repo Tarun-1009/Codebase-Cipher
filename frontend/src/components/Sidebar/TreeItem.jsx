@@ -16,7 +16,10 @@ function TreeItem({ item, onNodeClick }) {
             name: item.name,
             type: isFolder ? 'folder' : 'file',
             path: item.path || item.name,
-            description: item.description || ""
+            description: item.description || "",
+            code: item.code || "",
+            imports: item.imports || [],
+            functions: item.functions || []
         });
     };
 
