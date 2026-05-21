@@ -140,6 +140,7 @@ async function BuildDependencyTree(username, repo) {
                                         language,
                                         role,
                                         imports,
+                                        code: fileContent,
                                         functions: fileFunctions.map(f => f.toJSON())
                                     });
 
@@ -167,6 +168,9 @@ async function BuildDependencyTree(username, repo) {
                     // Build tree with embedded functions and imports
                     buildTreeWithFiles(tree, fileMap);
 
+                    // Build call graph
+                    const callGraph = CallGraphBuilder.buildCallGraph(functions);
+
                     // Create new response format
                     const result = {
                         repository: {
@@ -174,7 +178,12 @@ async function BuildDependencyTree(username, repo) {
                             frameworks: [...frameworks]
                         },
                         tree: tree,
-                        apiEndpoints: endpoints.map(e => e.toJSON()),
+                        traceability: {
+                            functions: functions.map(f => typeof f.toJSON === 'function' ? f.toJSON() : f),
+                            callGraph: callGraph.toJSON(),
+                            metadata: callGraph.metadata
+                        },
+                        apiEndpoints: endpoints.map(e => typeof e.toJSON === 'function' ? e.toJSON() : e),
                         metadata: {
                             totalFiles: fileMap.size,
                             totalFunctions: functions.length,
@@ -223,6 +232,7 @@ function addTreeNode(tree, pathSegments, fileInfo) {
                     language: fileInfo.language,
                     role: fileInfo.role,
                     imports: fileInfo.imports,
+                    code: fileInfo.code,
                     functions: fileInfo.functions
                 };
             } else {
