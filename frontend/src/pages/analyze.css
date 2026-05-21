@@ -87,6 +87,18 @@
     flex-direction: column;
     min-height: 200px;
     overflow: hidden;
+    transition: all 0.3s ease-in-out;
+}
+
+.explorer-group.collapsed {
+    min-height: 0 !important;
+    height: 32px !important;
+    flex: 0 0 32px !important;
+}
+
+.explorer-toggle-btn:hover {
+    color: #0f172a !important;
+    background: #f1f5f9;
 }
 
 .sidebar-explorer-container {

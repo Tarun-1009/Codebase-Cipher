@@ -18,7 +18,9 @@ import {
     FaCode, 
     FaCube, 
     FaFolderOpen,
-    FaRegFileCode
+    FaRegFileCode,
+    FaEye,
+    FaEyeSlash
 } from "react-icons/fa";
 import "./analyze.css";
 
@@ -33,6 +35,7 @@ function Analyze() {
     
     // Left sidebar navigation tab selection
     const [activeTab, setActiveTab] = useState("dashboard"); // 'dashboard', 'tree', 'dependencies', 'traceability', 'api'
+    const [showExplorer, setShowExplorer] = useState(true);
     
     // Top Bar Address input
     const [repoUrl, setRepoUrl] = useState(`https://github.com/${username}/${repo}`);
@@ -390,14 +393,38 @@ function Analyze() {
                     </div>
 
                     {/* Scrollable File Explorer in Sidebar */}
-                    <div className="explorer-group">
-                        <span className="panel-label">Directory Explorer</span>
-                        <div className="sidebar-explorer-container">
-                            <FileExplorer 
-                                nodes={repoData.tree ? [repoData.tree] : []} 
-                                onNodeClick={handleNodeSelection} 
-                            />
+                    <div className={`explorer-group ${showExplorer ? 'open' : 'collapsed'}`}>
+                        <div className="explorer-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingRight: '4px' }}>
+                            <span className="panel-label">Directory Explorer</span>
+                            <button 
+                                onClick={() => setShowExplorer(!showExplorer)}
+                                className="explorer-toggle-btn"
+                                style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    color: '#64748b',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    fontSize: '0.8rem',
+                                    transition: 'all 0.2s',
+                                    outline: 'none'
+                                }}
+                                title={showExplorer ? "Hide File Explorer" : "Show File Explorer"}
+                            >
+                                {showExplorer ? <FaEyeSlash /> : <FaEye />}
+                            </button>
                         </div>
+                        {showExplorer && (
+                            <div className="sidebar-explorer-container">
+                                <FileExplorer 
+                                    nodes={repoData.tree ? [repoData.tree] : []} 
+                                    onNodeClick={handleNodeSelection} 
+                                />
+                            </div>
+                        )}
                     </div>
 
                     {/* View Specific bottom Metadata Card */}
@@ -504,6 +531,7 @@ function Analyze() {
                     {activeTab === "traceability" && (
                         <TraceabilityGraph 
                             traceability={repoData.traceability} 
+                            apiEndpoints={repoData?.apiEndpoints || []}
                             onNodeClick={handleTraceabilityClick}
                         />
                     )}
@@ -517,10 +545,12 @@ function Analyze() {
                 </div>
 
                 {/* Right Sidebar layout for AI summaries and Code Viewer */}
-                <div className="summary">
-                    <span className="panel-label">Analysis Workspace</span>
-                    <Summary selectedNode={selectedNode} username={username} repo={repo} />
-                </div>
+                {activeTab !== "api" && activeTab !== "traceability" && (
+                    <div className="summary">
+                        <span className="panel-label">Analysis Workspace</span>
+                        <Summary selectedNode={selectedNode} username={username} repo={repo} />
+                    </div>
+                )}
             </div>
         </div>
     );
