@@ -80,7 +80,7 @@ const nodeTypes = {
     external: ExternalNode,
 };
 
-function DependencyGraph({repoData, repoName}){
+function DependencyGraph({repoData, repoName, onNodeClick}){
     const { nodes, edges } = useMemo(() => {
         if (!repoData) return { nodes: [], edges: [] };
         const result = dependencyBuild(repoData);
@@ -97,6 +97,15 @@ function DependencyGraph({repoData, repoName}){
                 nodes={nodes}
                 edges={edges}
                 nodeTypes={nodeTypes}
+                onNodeClick={(event, node) => {
+                    if (node.type === 'file') {
+                        onNodeClick?.({
+                            name: node.data.label,
+                            path: node.data.path || node.id,
+                            type: 'file'
+                        });
+                    }
+                }}
                 fitView
                 fitViewOptions={{ padding: 0.15 }}
                 minZoom={0.05}
