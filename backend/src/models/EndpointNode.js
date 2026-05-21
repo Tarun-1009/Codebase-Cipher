@@ -13,7 +13,8 @@ class EndpointNode {
     this.handler = data.handler || '';
     this.handlerFunctionId = data.handlerFunctionId || ''; // Format: file#functionName
     this.handlerFile = data.handlerFile || '';
-    this.line = data.line || 0;
+    this.handlerLine = data.handlerLine || 0; // Line where handler is defined
+    this.line = data.line || this.handlerLine || 0; // Alias for handlerLine
     
     this.middleware = data.middleware || [];
     this.requestSchema = data.requestSchema || {

@@ -21,9 +21,11 @@ class EndpointParser {
 
   static parseJavaScriptEndpoints(content, filename) {
     const endpoints = [];
+    const lines = content.split('\n');
 
     // Express.js routes: app.get('/path', ...) or router.post('/path', ...)
-    const expressRegex = /(?:app|router)\.(get|post|put|delete|patch|head|options)\s*\(\s*['"`]([^'"`]+)['"`]/g;
+    // This regex captures the full route call to find the handler line
+    const expressRegex = /(?:app|router)\.(get|post|put|delete|patch|head|options)\s*\(\s*['"`]([^'"`]+)['"`]\s*,\s*(?:async\s+)?\(.*?\)\s*=>/g;
     let match;
     while ((match = expressRegex.exec(content)) !== null) {
       const lineNum = content.substring(0, match.index).split('\n').length;

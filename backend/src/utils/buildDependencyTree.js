@@ -126,7 +126,21 @@ async function BuildDependencyTree(username, repo) {
                                     fileEndpoints.forEach(endpoint => {
                                         endpoint.id = `${endpoint.method}:${endpoint.path}`;
                                         endpoint.handlerFile = fullPath;
-                                        endpoint.handlerFunctionId = fileFunctions.length > 0 ? fileFunctions[0].id : '';
+                                        endpoint.line = endpoint.handlerLine || 0;
+                                        
+                                        // Find the closest function to this endpoint (should be on same or nearby line)
+                                        let closestFunc = null;
+                                        let minDistance = Infinity;
+                                        
+                                        fileFunctions.forEach(func => {
+                                            const distance = Math.abs(func.line - (endpoint.handlerLine || 0));
+                                            if (distance < minDistance) {
+                                                minDistance = distance;
+                                                closestFunc = func;
+                                            }
+                                        });
+                                        
+                                        endpoint.handlerFunctionId = closestFunc ? closestFunc.id : '';
                                     });
                                     
                                     endpoints.push(...fileEndpoints);
