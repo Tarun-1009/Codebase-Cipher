@@ -4,6 +4,7 @@ import FileExplorer from "../components/Sidebar/FileExplorer";
 import Summary from "../components/Summary/Summary";
 import DependencyGraph from "../components/Canvas/DependencyGraph";
 import TraceabilityGraph from "../components/Canvas/TraceabilityGraph";
+import ApiCatalog from "../components/ApiCatalog/ApiCatalog";
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import flattenTree from "../utils/treeFlattener";
@@ -508,70 +509,10 @@ function Analyze() {
                     )}
                     
                     {activeTab === "api" && (
-                        <div className="api-catalog-view">
-                            <div className="api-header-row">
-                                <h2>Repository API Endpoints</h2>
-                                <input 
-                                    type="text" 
-                                    className="api-search-input"
-                                    placeholder="Filter by method, path, or file..."
-                                    value={apiSearch}
-                                    onChange={(e) => setApiSearch(e.target.value)}
-                                />
-                            </div>
-                            
-                            <div className="api-table-wrapper">
-                                {filteredApis.length > 0 ? (
-                                    <table className="api-table">
-                                        <thead>
-                                            <tr>
-                                                <th style={{ width: "100px" }}>Method</th>
-                                                <th>Endpoint Path</th>
-                                                <th style={{ width: "150px" }}>Framework</th>
-                                                <th>Handler File Source</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {filteredApis.map((api, index) => {
-                                                const methodUpper = api.method.toUpperCase();
-                                                let badgeClass = "badge-grey";
-                                                if (methodUpper === "GET") badgeClass = "badge-get";
-                                                else if (methodUpper === "POST") badgeClass = "badge-post";
-                                                else if (methodUpper === "PUT") badgeClass = "badge-put";
-                                                else if (methodUpper === "DELETE") badgeClass = "badge-delete";
-                                                
-                                                return (
-                                                    <tr key={api.id || index}>
-                                                        <td>
-                                                            <span className={`method-badge ${badgeClass}`}>{methodUpper}</span>
-                                                        </td>
-                                                        <td className="api-path-cell">
-                                                            <code>{api.path}</code>
-                                                        </td>
-                                                        <td>
-                                                            <span className="framework-pill">{api.framework || "Express"}</span>
-                                                        </td>
-                                                        <td>
-                                                            <span 
-                                                                className="api-handler-link"
-                                                                onClick={() => handleApiClick(api.handlerFile)}
-                                                                title="View file source and explanation"
-                                                            >
-                                                                {api.handlerFile}
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                ) : (
-                                    <div className="api-empty-state">
-                                        <p>No matching API routes detected in the source code.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                        <ApiCatalog 
+                            apiEndpoints={repoData?.apiEndpoints || []} 
+                            repoTree={repoData?.tree || {}} 
+                        />
                     )}
                 </div>
 
