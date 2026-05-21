@@ -34,51 +34,87 @@ class FunctionParser {
   static parseJavaScript(content, filename) {
     const functions = [];
     const lines = content.split('\n');
+    const functionNames = new Set(); // Track found functions to avoid duplicates
 
-    // Parse function declarations
+    // Parse function declarations: function name() {}
     const funcDeclRegex = /(?:async\s+)?function\s+(\w+)\s*\(/g;
     let match;
     while ((match = funcDeclRegex.exec(content)) !== null) {
       const lineNum = content.substring(0, match.index).split('\n').length;
       const endLine = this.findFunctionEnd(lines, lineNum - 1);
-      functions.push(new FunctionNode({
-        name: match[1],
-        file: filename,
-        line: lineNum,
-        startLine: lineNum,
-        endLine: endLine,
-        type: 'function'
-      }));
-    }
-
-    // Parse arrow functions: const name = () =>
-    const arrowRegex = /const\s+(\w+)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>/g;
-    while ((match = arrowRegex.exec(content)) !== null) {
-      const lineNum = content.substring(0, match.index).split('\n').length;
-      const endLine = this.findFunctionEnd(lines, lineNum - 1);
-      functions.push(new FunctionNode({
-        name: match[1],
-        file: filename,
-        line: lineNum,
-        startLine: lineNum,
-        endLine: endLine,
-        type: 'arrow'
-      }));
-    }
-
-    // Parse class methods
-    const methodRegex = /^\s*(?:async\s+)?(\w+)\s*\([^)]*\)\s*{/gm;
-    while ((match = methodRegex.exec(content)) !== null) {
-      if (!match[1].match(/^(if|for|while|switch|function|class)/i)) {
-        const lineNum = content.substring(0, match.index).split('\n').length;
-        const endLine = this.findFunctionEnd(lines, lineNum - 1);
+      const funcName = match[1];
+      if (!functionNames.has(`${funcName}@${lineNum}`)) {
+        functionNames.add(`${funcName}@${lineNum}`);
         functions.push(new FunctionNode({
-          name: match[1],
+          name: funcName,
           file: filename,
           line: lineNum,
           startLine: lineNum,
           endLine: endLine,
-          type: 'method'
+          type: 'function'
+        }));
+      }
+    }
+
+    // Parse named arrow functions: const name = () =>
+    const arrowRegex = /const\s+(\w+)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>/g;
+    while ((match = arrowRegex.exec(content)) !== null) {
+      const lineNum = content.substring(0, match.index).split('\n').length;
+      const endLine = this.findFunctionEnd(lines, lineNum - 1);
+      const funcName = match[1];
+      if (!functionNames.has(`${funcName}@${lineNum}`)) {
+        functionNames.add(`${funcName}@${lineNum}`);
+        functions.push(new FunctionNode({
+          name: funcName,
+          file: filename,
+          line: lineNum,
+          startLine: lineNum,
+          endLine: endLine,
+          type: 'arrow'
+        }));
+      }
+    }
+
+    // Parse class methods: method() {} or async method() {}
+    const methodRegex = /^\s*(?:async\s+)?(\w+)\s*\([^)]*\)\s*{/gm;
+    while ((match = methodRegex.exec(content)) !== null) {
+      if (!match[1].match(/^(if|for|while|switch|function|class|constructor)/i)) {
+        const lineNum = content.substring(0, match.index).split('\n').length;
+        const endLine = this.findFunctionEnd(lines, lineNum - 1);
+        const funcName = match[1];
+        if (!functionNames.has(`${funcName}@${lineNum}`)) {
+          functionNames.add(`${funcName}@${lineNum}`);
+          functions.push(new FunctionNode({
+            name: funcName,
+            file: filename,
+            line: lineNum,
+            startLine: lineNum,
+            endLine: endLine,
+            type: 'method'
+          }));
+        }
+      }
+    }
+
+    // Parse route handlers and callbacks: app.get("/path", async (req, res) => {})
+    // Matches: app.METHOD(..., async (req, res) => {}) or app.METHOD(..., (req, res) => {})
+    const routeRegex = /\.(?:get|post|put|delete|patch|head|options|use)\s*\(\s*['"`]?[^'"`]*['"`]?\s*,\s*(?:async\s+)?\(([\w\s,]*)\)\s*=>/gm;
+    let routeNum = 0;
+    while ((match = routeRegex.exec(content)) !== null) {
+      const lineNum = content.substring(0, match.index).split('\n').length;
+      const endLine = this.findFunctionEnd(lines, lineNum - 1);
+      const params = match[1].trim();
+      const funcName = `handler_${routeNum++}`; // Generate name for anonymous callback
+      if (!functionNames.has(`${funcName}@${lineNum}`)) {
+        functionNames.add(`${funcName}@${lineNum}`);
+        functions.push(new FunctionNode({
+          name: funcName,
+          file: filename,
+          line: lineNum,
+          startLine: lineNum,
+          endLine: endLine,
+          type: 'arrow',
+          parameters: params.split(',').map(p => p.trim()).filter(p => p)
         }));
       }
     }
