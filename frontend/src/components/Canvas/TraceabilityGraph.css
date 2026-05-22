@@ -802,8 +802,32 @@
     color: #5b21b6;
 }
 
+.flow-node-card.branch-error {
+    border-style: dashed;
+    border-color: #ef4444;
+}
+
+.flow-node-card.branch-error.selected {
+    border-style: solid;
+    box-shadow: 0 0 0 1px #ef4444, 0 10px 15px -3px rgba(239, 68, 68, 0.05);
+}
+
+.flow-node-card.branch-error .node-step-number {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.node-branch-tag.error-flow {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
 .legend-color-dot.alternative {
     background: #8b5cf6;
+}
+
+.legend-color-dot.error-dot {
+    background: #ef4444;
 }
 
 /* CALL GRAPH TAB PANEL */

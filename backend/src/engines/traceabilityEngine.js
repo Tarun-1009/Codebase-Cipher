@@ -348,16 +348,144 @@ function buildSequences(endpoints, functions, fileMap) {
     branches.forEach(branch => {
       for (let i = 0; i < branch.steps.length; i++) {
         branch.steps[i].prevStep = i === 0
-          ? (steps[1] ? steps[1].component : 'Handler')
+          ? (branch.parentStepComponent || (steps[1] ? steps[1].component : 'Handler'))
           : branch.steps[i - 1].component;
         branch.steps[i].nextStep = i === branch.steps.length - 1
-          ? 'Completed'
+          ? 'Client'
           : branch.steps[i + 1].component;
       }
     });
 
     return { endpointId: ep.id, steps, branches };
   });
+}
+
+function findErrorPaths(func) {
+  const errors = [];
+  const body = func.bodyText || '';
+  if (!body) return errors;
+
+  // 1. Scan for Express res.status(XXX) or res.sendStatus(XXX)
+  const expressRe = /res\s*\.\s*(?:status|sendStatus)\s*\(\s*(\d{3})\s*\)/g;
+  let m;
+  while ((m = expressRe.exec(body)) !== null) {
+    const code = m[1];
+    errors.push({
+      type: 'http',
+      status: code,
+      message: getHttpStatusMessage(code),
+      details: `res.status(${code})`
+    });
+  }
+
+  // 2. Scan for JS/Java throw statements
+  const throwRe = /throw\s+new\s+(\w+)\s*\(\s*(['"`])([\s\S]*?)\2\s*\)/g;
+  while ((m = throwRe.exec(body)) !== null) {
+    errors.push({
+      type: 'exception',
+      exception: m[1],
+      message: m[3],
+      details: `throw new ${m[1]}("${m[3]}")`
+    });
+  }
+
+  // Fallback for simple throw new Error()
+  const simpleThrowRe = /throw\s+new\s+(\w+)\s*\(/g;
+  while ((m = simpleThrowRe.exec(body)) !== null) {
+    const exc = m[1];
+    if (!errors.some(e => e.exception === exc)) {
+      errors.push({
+        type: 'exception',
+        exception: exc,
+        message: `${exc} thrown`,
+        details: `throw new ${exc}()`
+      });
+    }
+  }
+
+  // 3. Scan for Python raise statement
+  const pythonRaiseRe = /raise\s+(\w+)\s*\(\s*(['"`])([\s\S]*?)\2\s*\)/g;
+  while ((m = pythonRaiseRe.exec(body)) !== null) {
+    errors.push({
+      type: 'exception',
+      exception: m[1],
+      message: m[3],
+      details: `raise ${m[1]}("${m[3]}")`
+    });
+  }
+
+  // Python fastapi/flask HTTP exceptions
+  const fastapiRe = /HTTPException\s*\(\s*(?:status_code\s*=\s*)?(\d{3})/g;
+  while ((m = fastapiRe.exec(body)) !== null) {
+    const code = m[1];
+    errors.push({
+      type: 'http',
+      status: code,
+      message: getHttpStatusMessage(code),
+      details: `HTTPException(status_code=${code})`
+    });
+  }
+
+  // Flask abort
+  const flaskAbortRe = /\babort\s*\(\s*(\d{3})\s*\)/g;
+  while ((m = flaskAbortRe.exec(body)) !== null) {
+    const code = m[1];
+    errors.push({
+      type: 'http',
+      status: code,
+      message: getHttpStatusMessage(code),
+      details: `abort(${code})`
+    });
+  }
+
+  // 4. Scan for Express res.redirect(...)
+  const redirectRe = /res\s*\.\s*redirect\s*\(\s*(?:(\d{3})\s*,\s*)?(['"`])([^'"`]+)\2\s*\)/g;
+  while ((m = redirectRe.exec(body)) !== null) {
+    const code = m[1] || '302';
+    errors.push({
+      type: 'http',
+      status: code,
+      message: `Redirect to ${m[3]}`,
+      details: m[1] ? `res.redirect(${code}, "${m[3]}")` : `res.redirect("${m[3]}")`
+    });
+  }
+
+  // 5. Scan for FastAPI RedirectResponse
+  const fastapiRedirectRe = /RedirectResponse\s*\(\s*(?:url\s*=\s*)?(['"`])([^'"`]+)\1\s*(?:,\s*(?:status_code\s*=\s*)?(\d{3}))?/g;
+  while ((m = fastapiRedirectRe.exec(body)) !== null) {
+    const code = m[3] || '307';
+    errors.push({
+      type: 'http',
+      status: code,
+      message: `Redirect to ${m[2]}`,
+      details: `RedirectResponse(url="${m[2]}", status_code=${code})`
+    });
+  }
+
+  return errors;
+}
+
+function getHttpStatusMessage(code) {
+  const messages = {
+    '200': 'OK',
+    '201': 'Created',
+    '204': 'No Content',
+    '300': 'Multiple Choices',
+    '301': 'Moved Permanently',
+    '302': 'Found',
+    '304': 'Not Modified',
+    '400': 'Bad Request',
+    '401': 'Unauthorized',
+    '403': 'Forbidden',
+    '404': 'Not Found',
+    '405': 'Method Not Allowed',
+    '409': 'Conflict',
+    '429': 'Too Many Requests',
+    '500': 'Internal Server Error',
+    '502': 'Bad Gateway',
+    '503': 'Service Unavailable'
+  };
+  return messages[code] || 'Response';
 }
 
 function _dfsSteps(func, funcById, fileMap, visited, steps, branches) {
@@ -386,6 +514,56 @@ function _dfsSteps(func, funcById, fileMap, visited, steps, branches) {
     outputs: [{ name: 'result', type: 'any' }],
     prevStep: '',
     nextStep: ''
+  });
+
+  // Statically detect error/exception paths in this function body
+  const errorPaths = findErrorPaths(func);
+  errorPaths.forEach((err, idx) => {
+    const isError = err.type === 'exception' || (err.type === 'http' && parseInt(err.status) >= 400);
+    let errorLabel = '';
+    if (err.type === 'http') {
+      const codeInt = parseInt(err.status);
+      if (codeInt >= 400) {
+        errorLabel = `Error: ${err.status}`;
+      } else if (codeInt >= 300 && codeInt < 400) {
+        errorLabel = `Redirect: ${err.status}`;
+      } else {
+        errorLabel = `Response: ${err.status}`;
+      }
+    } else {
+      errorLabel = `Throws: ${err.exception}`;
+    }
+    const errorMsg = err.message || 'An error occurred';
+    
+    branches.push({
+      name: errorLabel,
+      branch: `branch-error-${func.id}-${idx}`,
+      isError: isError,
+      parentStepComponent: label,
+      steps: [
+        {
+          id: `step-error-${func.id}-${idx}`,
+          num: '!',
+          type: isError ? 'error' : 'response',
+          component: err.type === 'http'
+            ? (parseInt(err.status) >= 400
+                ? `HTTP ${err.status} Response`
+                : (parseInt(err.status) >= 300 && parseInt(err.status) < 400
+                    ? `HTTP ${err.status} Redirect`
+                    : `HTTP ${err.status} Response`))
+            : `${err.exception} Raised`,
+          name: errorMsg,
+          file: func.file,
+          latency: '0ms',
+          overview: `Statically detected error/exception branch in ${func.name}() triggered on condition. Statement: "${err.details}"`,
+          keyFunctions: [],
+          inputs: [],
+          outputs: isError ? [{ name: 'error', type: 'string' }] : [{ name: 'response', type: 'any' }],
+          prevStep: label,
+          nextStep: 'Client'
+        }
+      ]
+    });
   });
 
   if (func.calls?.length > 0) {
