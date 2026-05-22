@@ -205,7 +205,8 @@ export default function ApiCatalog({ apiEndpoints = [], repoTree = {} }) {
         return getEndpointMetadata(
             selectedEndpoint.method, 
             selectedEndpoint.path, 
-            selectedEndpoint.handlerFile
+            selectedEndpoint.handlerFile,
+            selectedEndpoint
         );
     }, [selectedEndpoint]);
 

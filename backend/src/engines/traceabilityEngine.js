@@ -232,12 +232,61 @@ function resolveCallGraph(functions, fileMap) {
 //    Only functions with at least one call relationship are included.
 //    Synthetic __route_ handlers are excluded from graph nodes.
 // ---------------------------------------------------------------------------
-function buildTraceabilityGraph(functions, fileMap) {
+function buildTraceabilityGraph(functions, fileMap, endpoints = []) {
   const nodes = [];
   const edges = [];
   const edgeSeen = new Set();
   const nodeSeen = new Set();
 
+  // 1. Add API Endpoints as visual entry nodes
+  (endpoints || []).forEach(ep => {
+    if (!nodeSeen.has(ep.id)) {
+      nodeSeen.add(ep.id);
+      nodes.push({
+        id: ep.id,
+        label: `${ep.method} ${ep.path}`,
+        file: ep.handlerFile,
+        type: 'server', // style appropriately in UI
+        line: ep.handlerLine,
+        isAsync: false,
+        parameters: []
+      });
+    }
+
+    // Connect this endpoint to its real/synthetic target
+    const targetFunc = functions.find(f => f.id === ep.handlerFunctionId);
+    if (targetFunc) {
+      if (targetFunc.name.startsWith('__route_')) {
+        // It's synthetic: connect the endpoint to all functions the synthetic handler calls
+        targetFunc.calls.forEach(callId => {
+          const edgeId = `${ep.id}__${callId}`;
+          if (!edgeSeen.has(edgeId)) {
+            edgeSeen.add(edgeId);
+            edges.push({ id: edgeId, source: ep.id, target: callId, label: 'routes to' });
+          }
+        });
+      } else {
+        // It's a real function: connect directly
+        const edgeId = `${ep.id}__${ep.handlerFunctionId}`;
+        if (!edgeSeen.has(edgeId)) {
+          edgeSeen.add(edgeId);
+          edges.push({ id: edgeId, source: ep.id, target: ep.handlerFunctionId, label: 'routes to' });
+        }
+      }
+    } else if (ep.handlerFunction) {
+      // Fallback search for any function with matching name in the same file
+      const fallbackFunc = functions.find(f => f.file === ep.handlerFile && f.name === ep.handlerFunction);
+      if (fallbackFunc) {
+        const edgeId = `${ep.id}__${fallbackFunc.id}`;
+        if (!edgeSeen.has(edgeId)) {
+          edgeSeen.add(edgeId);
+          edges.push({ id: edgeId, source: ep.id, target: fallbackFunc.id, label: 'routes to' });
+        }
+      }
+    }
+  });
+
+  // 2. Add regular functions
   // Active = has calls or calledBy, and is NOT synthetic
   const activeFuncs = functions.filter(f =>
     !isRouteHandler(f) && (f.calls.length > 0 || f.calledBy.length > 0)

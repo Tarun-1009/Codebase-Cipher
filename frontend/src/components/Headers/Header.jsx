@@ -3,7 +3,7 @@ import './Header.css';
 import logo from '../../assets/logo.png';
 import { FaPlay, FaDownload } from 'react-icons/fa';
 
-const Header = ({ repoUrl, setRepoUrl, onAnalyze, onExport }) => {
+const Header = ({ repoUrl, setRepoUrl, onAnalyze, onExport, branches = [], selectedBranch, setSelectedBranch }) => {
   const navigate = useNavigate();
 
   const handleLogoClick = () => {
@@ -31,6 +31,22 @@ const Header = ({ repoUrl, setRepoUrl, onAnalyze, onExport }) => {
           className="header-search-input"
           onKeyDown={handleKeyDown}
         />
+        
+        {branches && branches.length > 0 && (
+          <select
+            value={selectedBranch}
+            onChange={(e) => setSelectedBranch(e.target.value)}
+            className="header-branch-select"
+            title="Select Branch"
+          >
+            {branches.map(br => (
+              <option key={br} value={br}>
+                {br}
+              </option>
+            ))}
+          </select>
+        )}
+
         <button onClick={onAnalyze} className="header-action-btn run-btn" title="Analyze Repository">
           <FaPlay size={10} style={{ marginRight: '6px' }} /> Analyze
         </button>
