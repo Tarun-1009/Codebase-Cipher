@@ -313,7 +313,7 @@ export default function TraceabilityGraph({ traceability, apiEndpoints = [], onN
                                                 {stepBranches.length > 0 && (
                                                     <div className="flow-step-branches" style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%', alignItems: 'center', position: 'relative' }}>
                                                         {/* Vertical line linking parent to the first branch */}
-                                                        <div className="flow-branch-vertical-line" style={{ width: '2px', height: '32px', background: '#cbd5e1', position: 'absolute', top: '-32px', left: '50%', transform: 'translateX(-50%)' }}>
+                                                        <div className="flow-branch-vertical-line" style={{ width: '2px', height: '32px', background: 'rgba(255, 255, 255, 0.15)', position: 'absolute', top: '-32px', left: '50%', transform: 'translateX(-50%)' }}>
                                                             <div style={{
                                                                 position: 'absolute',
                                                                 bottom: 0,
@@ -323,7 +323,7 @@ export default function TraceabilityGraph({ traceability, apiEndpoints = [], onN
                                                                 height: 0,
                                                                 borderLeft: '4px solid transparent',
                                                                 borderRight: '4px solid transparent',
-                                                                borderTop: '6px solid #cbd5e1'
+                                                                borderTop: '6px solid rgba(255, 255, 255, 0.15)'
                                                             }} />
                                                         </div>
 
@@ -331,7 +331,7 @@ export default function TraceabilityGraph({ traceability, apiEndpoints = [], onN
                                                             <div key={bIdx} className="branch-path-container" style={{ width: '100%', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                                                                 {/* Vertical line between multiple stacked branches */}
                                                                 {bIdx > 0 && (
-                                                                    <div className="flow-branch-vertical-line" style={{ width: '2px', height: '24px', background: '#cbd5e1', position: 'absolute', top: '-24px', left: '50%', transform: 'translateX(-50%)' }}>
+                                                                    <div className="flow-branch-vertical-line" style={{ width: '2px', height: '24px', background: 'rgba(255, 255, 255, 0.15)', position: 'absolute', top: '-24px', left: '50%', transform: 'translateX(-50%)' }}>
                                                                         <div style={{
                                                                             position: 'absolute',
                                                                             bottom: 0,
@@ -341,7 +341,7 @@ export default function TraceabilityGraph({ traceability, apiEndpoints = [], onN
                                                                             height: 0,
                                                                             borderLeft: '4px solid transparent',
                                                                             borderRight: '4px solid transparent',
-                                                                            borderTop: '6px solid #cbd5e1'
+                                                                            borderTop: '6px solid rgba(255, 255, 255, 0.15)'
                                                                         }} />
                                                                     </div>
                                                                 )}
@@ -370,7 +370,7 @@ export default function TraceabilityGraph({ traceability, apiEndpoints = [], onN
                                                                                 <span className="node-file-path" title={bStep.file}>{bStep.file}</span>
                                                                             </div>
                                                                             {sIdx < branch.steps.length - 1 && (
-                                                                                <div className="flow-branch-vertical-line" style={{ width: '2px', height: '24px', background: '#cbd5e1', margin: '4px 0', position: 'relative' }}>
+                                                                                <div className="flow-branch-vertical-line" style={{ width: '2px', height: '24px', background: 'rgba(255, 255, 255, 0.15)', margin: '4px 0', position: 'relative' }}>
                                                                                     <div style={{
                                                                                         position: 'absolute',
                                                                                         bottom: 0,
@@ -380,7 +380,7 @@ export default function TraceabilityGraph({ traceability, apiEndpoints = [], onN
                                                                                         height: 0,
                                                                                         borderLeft: '4px solid transparent',
                                                                                         borderRight: '4px solid transparent',
-                                                                                        borderTop: '6px solid #cbd5e1'
+                                                                                        borderTop: '6px solid rgba(255, 255, 255, 0.15)'
                                                                                     }} />
                                                                                 </div>
                                                                             )}
@@ -525,14 +525,14 @@ export default function TraceabilityGraph({ traceability, apiEndpoints = [], onN
                                 maxZoom={2}
                                 proOptions={{ hideAttribution: true }}
                             >
-                                <Background variant="dots" gap={20} size={1} color="#e2e8f0" />
+                                <Background variant="dots" gap={20} size={1} color="rgba(15, 23, 42, 0.08)" />
                                 <Controls showInteractive={false} />
-                                <Panel position="top-left" style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '10px 14px', fontSize: '0.75rem', color: '#64748b' }}>
-                                    <strong style={{ color: '#0f172a' }}>{rfNodes.length}</strong> functions &nbsp;·&nbsp; <strong style={{ color: '#0f172a' }}>{rfEdges.length}</strong> call relationships
+                                <Panel position="top-left" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 10, padding: '10px 14px', fontSize: '0.75rem', color: 'var(--text-secondary)', backdropFilter: 'blur(8px)', boxShadow: '0 4px 20px rgba(15, 23, 42, 0.08)' }}>
+                                    <strong style={{ color: 'var(--text-primary)' }}>{rfNodes.length}</strong> functions &nbsp;·&nbsp; <strong style={{ color: 'var(--text-primary)' }}>{rfEdges.length}</strong> call relationships
                                 </Panel>
                                 <Panel position="top-right" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                     {Object.entries(roleColors).slice(0, 6).map(([role, color]) => (
-                                        <div key={role} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.65rem', color: '#64748b', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 6, padding: '3px 8px' }}>
+                                        <div key={role} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.65rem', color: 'var(--text-secondary)', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 6, padding: '4px 10px', backdropFilter: 'blur(8px)', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.05)' }}>
                                             <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, display: 'inline-block' }} />
                                             {role}
                                         </div>

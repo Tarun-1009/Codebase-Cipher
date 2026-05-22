@@ -241,28 +241,28 @@ function DependencyGraph({ repoData, repoName, onNodeClick }) {
                 maxZoom={2}
                 proOptions={{ hideAttribution: true }}
             >
-                <Background variant="dots" gap={20} size={1} color="#e2e8f0" />
+                <Background variant="dots" gap={20} size={1} color="rgba(15, 23, 42, 0.08)" />
                 <Controls showInteractive={false} className="dep-custom-controls" />
                 <MiniMap
-                    style={{ border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', backgroundColor: '#ffffff' }}
-                    maskColor="rgba(248,250,252,0.7)"
+                    style={{ border: '1px solid var(--border-color)', borderRadius: '8px', boxShadow: '0 4px 20px rgba(15, 23, 42, 0.08)', backgroundColor: 'var(--bg-secondary)' }}
+                    maskColor="rgba(248, 250, 252, 0.6)"
                 />
                 <Panel position="top-left" className="dep-panel-left">
                     <div className="dep-stat-card">
-                        <FaFolder color="#64748b" size={16} />
-                        <span style={{ fontWeight: 600, color: '#0f172a' }}>{repoName}</span>
+                        <FaFolder color="var(--text-muted)" size={16} />
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{repoName}</span>
                     </div>
                     <div className="dep-stat-card dep-col">
                         <span className="dep-stat-title">Files</span>
-                        <span className="dep-stat-value" style={{ color: '#8b5cf6' }}>{internalCount}</span>
+                        <span className="dep-stat-value" style={{ color: 'var(--accent-purple)' }}>{internalCount}</span>
                     </div>
                     <div className="dep-stat-card dep-col">
                         <span className="dep-stat-title">Import Links</span>
-                        <span className="dep-stat-value" style={{ color: '#3b82f6' }}>{edges.length}</span>
+                        <span className="dep-stat-value" style={{ color: 'var(--accent-secondary)' }}>{edges.length}</span>
                     </div>
                     <div className="dep-stat-card dep-col">
                         <span className="dep-stat-title">External Packages</span>
-                        <span className="dep-stat-value" style={{ color: '#10b981' }}>{externalCount}</span>
+                        <span className="dep-stat-value" style={{ color: 'var(--accent-success)' }}>{externalCount}</span>
                     </div>
                 </Panel>
                 <Panel position="top-right" className="dep-panel-right">
