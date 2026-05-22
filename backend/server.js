@@ -15,13 +15,43 @@ app.get("/", (req, res) => {
 });
 
 
+
+const { exec } = require("child_process");
+
+app.get("/branches/:username/:repo", async (req, res) => {
+    const { username, repo } = req.params;
+    const repoUrl = `https://github.com/${username}/${repo}`;
+    
+    exec(`git ls-remote --heads ${repoUrl}`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`git ls-remote error: ${error.message}`);
+            return res.json(['main']);
+        }
+        
+        const lines = stdout.split('\n');
+        const branches = lines
+            .map(line => {
+                const match = line.match(/refs\/heads\/(.+)$/);
+                return match ? match[1].trim() : null;
+            })
+            .filter(Boolean);
+            
+        if (branches.length > 0) {
+            res.json(branches);
+        } else {
+            res.json(['main']);
+        }
+    });
+});
+
 //Returns: { tree, traceability, apiEndpoints } - 3-object analysis response
 
 app.get("/analyze/:username/:repo",async (req,res)=>{
 
     const {username,repo}=req.params;
+    const {branch}=req.query;
     try {
-        const analysisResult = await BuildDependencyTree(username,repo);
+        const analysisResult = await BuildDependencyTree(username,repo,branch);
         res.json(analysisResult);
     } catch (error) {
         res.status(500).json({error:error.message});

@@ -7,6 +7,27 @@
 const EndpointNode = require('../models/EndpointNode');
 
 class EndpointParser {
+  static deriveHandlerName(method, path) {
+    if (!path || path === '/' || path === '*') {
+      return `${method.toLowerCase()}Root`;
+    }
+    const cleanPath = path.replace(/[:{}<>]/g, ''); // remove param markers
+    const segments = cleanPath.split('/').filter(Boolean);
+    if (segments.length === 0) return `${method.toLowerCase()}Root`;
+    
+    const origSegments = path.split('/').filter(Boolean);
+    const camelSegments = segments.map((seg, idx) => {
+      const origSeg = origSegments[idx] || '';
+      const isParam = origSeg.startsWith(':') || (origSeg.startsWith('{') && origSeg.endsWith('}')) || (origSeg.startsWith('<') && origSeg.endsWith('>'));
+      let name = seg.replace(/[^a-zA-Z0-9_$]/g, '');
+      if (!name) return '';
+      name = name.charAt(0).toUpperCase() + name.slice(1);
+      return isParam ? `By${name}` : name;
+    });
+    
+    return `${method.toLowerCase()}${camelSegments.filter(Boolean).join('')}`;
+  }
+
   static async parseEndpoints(fileContent, language, filename) {
     if (language === 'javascript' || language === 'typescript') {
       return this.parseJavaScriptEndpoints(fileContent, filename);
@@ -164,7 +185,30 @@ class EndpointParser {
                        handlerArg.startsWith('async');
 
       if (isInline) {
-        handlerFunction = `anonymous_${anonCount++}`;
+        // Try to extract a meaningful function name from the inline body
+        const genericNames = [
+          'require', 'json', 'send', 'status', 'next', 'log', 'error', 'req', 'res', 'response', 'request',
+          'Promise', 'Object', 'Array', 'String', 'Number', 'Boolean', 'eval',
+          'map', 'forEach', 'filter', 'reduce', 'find', 'push', 'pop', 'shift', 'unshift', 'split', 'join',
+          'replace', 'substring', 'substr', 'concat', 'slice', 'splice', 'keys', 'values', 'entries', 'toString',
+          'logger', 'log', 'info', 'debug', 'warn', 'error', 'console', 'exec',
+          'async', 'function', 'catch', 'then', 'if', 'for', 'while', 'switch'
+        ];
+        let extractedName = null;
+        
+        // Match standard function/method calls inside the body, capturing only the call chain
+        const regex = /(?:await\s+)?([a-zA-Z_$][\w$]*(?:\.[a-zA-Z_$][\w$]*)*)\s*\(/g;
+        let m;
+        while ((m = regex.exec(handlerArg)) !== null) {
+          const fullCall = m[1];
+          const parts = fullCall.split('.');
+          const name = parts[parts.length - 1].trim();
+          if (!genericNames.includes(name) && !genericNames.includes(parts[0])) {
+            extractedName = name;
+            break;
+          }
+        }
+        handlerFunction = extractedName || this.deriveHandlerName(method, path);
       } else {
         // Named handler, e.g. "articleService.getArticles"
         const parts = handlerArg.split('.');
@@ -208,12 +252,13 @@ class EndpointParser {
         const defMatch = lines[i].match(/^\s*(?:async\s+)?def\s+(\w+)/);
         if (defMatch) { handlerFunction = defMatch[1]; break; }
       }
+      const derivedMethod = m[1].toUpperCase();
       endpoints.push(new EndpointNode({
         path: m[2],
-        method: m[1].toUpperCase(),
+        method: derivedMethod,
         handlerFile: filename,
         handlerLine: lineNum + 1,
-        handlerFunction: handlerFunction || 'anonymous',
+        handlerFunction: handlerFunction || this.deriveHandlerName(derivedMethod, m[2]),
         framework: 'fastapi'
       }));
     }
@@ -233,12 +278,13 @@ class EndpointParser {
       }
 
       methods.forEach(method => {
+        const derivedMethod = method.toUpperCase();
         endpoints.push(new EndpointNode({
           path: m[1],
-          method: method.toUpperCase(),
+          method: derivedMethod,
           handlerFile: filename,
           handlerLine: lineNum + 1,
-          handlerFunction: handlerFunction || 'anonymous',
+          handlerFunction: handlerFunction || this.deriveHandlerName(derivedMethod, m[1]),
           framework: 'flask'
         }));
       });
@@ -274,7 +320,7 @@ class EndpointParser {
         method: httpMethod,
         handlerFile: filename,
         handlerLine: lineNum + 1,
-        handlerFunction: handlerFunction || 'anonymous',
+        handlerFunction: handlerFunction || this.deriveHandlerName(httpMethod, m[2]),
         framework: 'spring'
       }));
     }

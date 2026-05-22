@@ -33,6 +33,10 @@ function Analyze() {
     const [error, setError] = useState(null);
     const [selectedNode, setSelectedNode] = useState(null);
     
+    // Branch Selection state
+    const [branches, setBranches] = useState([]);
+    const [selectedBranch, setSelectedBranch] = useState("");
+    
     // Left sidebar navigation tab selection
     const [activeTab, setActiveTab] = useState("dashboard"); // 'dashboard', 'tree', 'dependencies', 'traceability', 'api'
     const [showExplorer, setShowExplorer] = useState(true);
@@ -43,8 +47,43 @@ function Analyze() {
     // API Search filter
     const [apiSearch, setApiSearch] = useState("");
 
+    // Fetch branches list when repo changes
+    useEffect(() => {
+        if (!username || !repo) return;
+        setBranches([]);
+        setSelectedBranch("");
+        
+        fetch(`http://localhost:5000/branches/${username}/${repo}`)
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.json();
+            })
+            .then(data => {
+                if (Array.isArray(data) && data.length > 0) {
+                    setBranches(data);
+                    // Determine initial branch choice
+                    const initialBr = data.includes("main") 
+                        ? "main" 
+                        : data.includes("master") 
+                            ? "master" 
+                            : data[0];
+                    setSelectedBranch(initialBr);
+                } else {
+                    setBranches(["main", "master"]);
+                    setSelectedBranch("main");
+                }
+            })
+            .catch(err => {
+                console.error("Failed to fetch branches:", err);
+                setBranches(["main", "master"]);
+                setSelectedBranch("main");
+            });
+    }, [username, repo]);
+
     // Fetch repository data
     useEffect(() => {
+        if (!username || !repo) return;
+        
         setRepoData(null);
         setError(null);
         setLoading(true);
@@ -52,12 +91,14 @@ function Analyze() {
         setActiveTab("dashboard");
         setRepoUrl(`https://github.com/${username}/${repo}`);
         
-        fetch(`http://localhost:5000/analyze/${username}/${repo}`)
+        const branchQuery = selectedBranch ? `?branch=${selectedBranch}` : "";
+        
+        fetch(`http://localhost:5000/analyze/${username}/${repo}${branchQuery}`)
             .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
             .then(data => setRepoData(data))
             .catch(err => setError(err))
             .finally(() => setLoading(false));
-    }, [username, repo]);
+    }, [username, repo, selectedBranch]);
 
     // Compute flattened tree and stats once here to avoid multiple passes
     const { flatNodes, flatEdges, totalFiles, languages } = useMemo(() => {
@@ -326,6 +367,9 @@ function Analyze() {
                 setRepoUrl={setRepoUrl} 
                 onAnalyze={handleAnalyze} 
                 onExport={handleExport} 
+                branches={branches}
+                selectedBranch={selectedBranch}
+                setSelectedBranch={setSelectedBranch}
             />
             
             <div className="main-wrapper">

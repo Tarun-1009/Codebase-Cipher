@@ -65,7 +65,7 @@ const nodeTypes = { traceNode: TraceNode };
 // ---------------------------------------------------------------------------
 function layoutTraceNodes(nodes, edges) {
     // Group by type in column order
-    const typeOrder = ['controller', 'server', 'middleware', 'service', 'repository', 'model', 'utility'];
+    const typeOrder = ['server', 'controller', 'middleware', 'service', 'repository', 'model', 'utility'];
     const columns = {};
     nodes.forEach(n => {
         const col = typeOrder.indexOf(n.type) >= 0 ? typeOrder.indexOf(n.type) : typeOrder.length;
@@ -326,7 +326,7 @@ export default function TraceabilityGraph({ traceability, apiEndpoints = [], onN
                                                                 borderTop: '6px solid #cbd5e1'
                                                             }} />
                                                         </div>
-                                                        
+
                                                         {stepBranches.map((branch, bIdx) => (
                                                             <div key={bIdx} className="branch-path-container" style={{ width: '100%', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                                                                 {/* Vertical line between multiple stacked branches */}
@@ -345,7 +345,7 @@ export default function TraceabilityGraph({ traceability, apiEndpoints = [], onN
                                                                         }} />
                                                                     </div>
                                                                 )}
-                                                                
+
                                                                 {branch.steps?.map((bStep, sIdx) => {
                                                                     const isBSelected = selectedStep?.id === bStep.id;
                                                                     const isErrorBranch = branch.isError === true;
