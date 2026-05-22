@@ -44,16 +44,17 @@ class EndpointParser {
   // ---------------------------------------------------------------------------
   static parseJavaScriptEndpoints(content, filename) {
     const endpoints = [];
-    const lines = content.split('\n');
-    let anonCount = 0;
+    const scanContent = content;
+    const lines = scanContent.split('\n');
 
     const routeStartRe = /(?:app|router)\.(get|post|put|delete|patch|head|options|use)\s*\(/g;
     let match;
 
-    while ((match = routeStartRe.exec(content)) !== null) {
+    while ((match = routeStartRe.exec(scanContent)) !== null) {
+      if (this._isCommentedAtIndex(content, match.index, 'javascript')) continue;
       const method = match[1].toUpperCase();
       const startIdx = match.index + match[0].length;
-      const lineNum = content.substring(0, match.index).split('\n').length;
+      const lineNum = scanContent.substring(0, match.index).split('\n').length;
 
       // Find matching closing parenthesis
       let depth = 1;
@@ -62,8 +63,8 @@ class EndpointParser {
       let stringChar = null;
       let escape = false;
 
-      for (let i = startIdx; i < content.length; i++) {
-        const char = content[i];
+      for (let i = startIdx; i < scanContent.length; i++) {
+        const char = scanContent[i];
 
         if (escape) {
           escape = false;
@@ -102,7 +103,7 @@ class EndpointParser {
 
       if (endIdx === -1) continue;
 
-      const argsStr = content.substring(startIdx, endIdx);
+      const argsStr = scanContent.substring(startIdx, endIdx);
 
       // Split argsStr by comma at depth 0
       const args = [];
@@ -239,13 +240,15 @@ class EndpointParser {
   // ---------------------------------------------------------------------------
   static parsePythonEndpoints(content, filename) {
     const endpoints = [];
-    const lines = content.split('\n');
+    const scanContent = this._stripPythonComments(content);
+    const lines = scanContent.split('\n');
 
     // FastAPI: @app.get("/path") or @router.post("/path")
     const fastAPIRe = /@(?:app|router|api_router)\.(get|post|put|delete|patch)\s*\(\s*['"`]([^'"`]+)['"`]/g;
     let m;
-    while ((m = fastAPIRe.exec(content)) !== null) {
-      const lineNum = content.substring(0, m.index).split('\n').length;
+    while ((m = fastAPIRe.exec(scanContent)) !== null) {
+      if (this._isCommentedAtIndex(content, m.index, 'python')) continue;
+      const lineNum = scanContent.substring(0, m.index).split('\n').length;
       // The function def is on the NEXT non-empty line
       let handlerFunction = null;
       for (let i = lineNum; i < Math.min(lineNum + 3, lines.length); i++) {
@@ -265,8 +268,9 @@ class EndpointParser {
 
     // Flask: @app.route('/path', methods=['GET','POST'])
     const flaskRe = /@(?:app|blueprint|bp)\.route\s*\(\s*['"`]([^'"`]+)['"`](?:,\s*methods\s*=\s*\[([^\]]+)\])?/g;
-    while ((m = flaskRe.exec(content)) !== null) {
-      const lineNum = content.substring(0, m.index).split('\n').length;
+    while ((m = flaskRe.exec(scanContent)) !== null) {
+      if (this._isCommentedAtIndex(content, m.index, 'python')) continue;
+      const lineNum = scanContent.substring(0, m.index).split('\n').length;
       const methods = m[2]
         ? m[2].split(',').map(s => s.trim().replace(/['"`]/g, ''))
         : ['GET'];
@@ -298,13 +302,15 @@ class EndpointParser {
   // ---------------------------------------------------------------------------
   static parseJavaEndpoints(content, filename) {
     const endpoints = [];
-    const lines = content.split('\n');
+    const scanContent = this._stripJavaLikeComments(content);
+    const lines = scanContent.split('\n');
 
     // @GetMapping("/path") @PostMapping @RequestMapping(value="/path", method=RequestMethod.GET)
     const springRe = /@(GetMapping|PostMapping|PutMapping|DeleteMapping|PatchMapping|RequestMapping)\s*\(\s*(?:value\s*=\s*)?['"`]([^'"`]+)['"`]/g;
     let m;
-    while ((m = springRe.exec(content)) !== null) {
-      const lineNum = content.substring(0, m.index).split('\n').length;
+    while ((m = springRe.exec(scanContent)) !== null) {
+      if (this._isCommentedAtIndex(content, m.index, 'java')) continue;
+      const lineNum = scanContent.substring(0, m.index).split('\n').length;
       const methodWord = m[1].replace('Mapping', '').toUpperCase();
       const httpMethod = methodWord === 'REQUEST' ? 'GET' : methodWord;
 
@@ -326,6 +332,269 @@ class EndpointParser {
     }
 
     return endpoints;
+  }
+
+  static _stripJavaLikeComments(content) {
+    let out = '';
+    let i = 0;
+    let inSingle = false;
+    let inDouble = false;
+    let inLineComment = false;
+    let inBlockComment = false;
+    let escape = false;
+
+    while (i < content.length) {
+      const ch = content[i];
+      const next = content[i + 1];
+
+      if (inLineComment) {
+        if (ch === '\n') {
+          inLineComment = false;
+          out += '\n';
+        } else {
+          out += ' ';
+        }
+        i++;
+        continue;
+      }
+
+      if (inBlockComment) {
+        if (ch === '*' && next === '/') {
+          out += '  ';
+          i += 2;
+          inBlockComment = false;
+        } else {
+          out += ch === '\n' ? '\n' : ' ';
+          i++;
+        }
+        continue;
+      }
+
+      if (inSingle || inDouble) {
+        out += ch;
+        if (escape) {
+          escape = false;
+        } else if (ch === '\\') {
+          escape = true;
+        } else if (inSingle && ch === '\'') {
+          inSingle = false;
+        } else if (inDouble && ch === '"') {
+          inDouble = false;
+        }
+        i++;
+        continue;
+      }
+
+      if (ch === '/' && next === '/') {
+        inLineComment = true;
+        out += '  ';
+        i += 2;
+        continue;
+      }
+
+      if (ch === '/' && next === '*') {
+        inBlockComment = true;
+        out += '  ';
+        i += 2;
+        continue;
+      }
+
+      if (ch === '\'') inSingle = true;
+      else if (ch === '"') inDouble = true;
+
+      out += ch;
+      i++;
+    }
+
+    return out;
+  }
+
+  static _stripPythonComments(content) {
+    let out = '';
+    let i = 0;
+    let inSingle = false;
+    let inDouble = false;
+    let inTripleSingle = false;
+    let inTripleDouble = false;
+    let inLineComment = false;
+    let escape = false;
+
+    while (i < content.length) {
+      const ch = content[i];
+      const next3 = content.slice(i, i + 3);
+
+      if (inLineComment) {
+        if (ch === '\n') {
+          inLineComment = false;
+          out += '\n';
+        } else {
+          out += ' ';
+        }
+        i++;
+        continue;
+      }
+
+      if (inTripleSingle) {
+        if (next3 === "'''") {
+          inTripleSingle = false;
+          out += "'''";
+          i += 3;
+        } else {
+          out += ch;
+          i++;
+        }
+        continue;
+      }
+
+      if (inTripleDouble) {
+        if (next3 === '"""') {
+          inTripleDouble = false;
+          out += '"""';
+          i += 3;
+        } else {
+          out += ch;
+          i++;
+        }
+        continue;
+      }
+
+      if (inSingle || inDouble) {
+        out += ch;
+        if (escape) {
+          escape = false;
+        } else if (ch === '\\') {
+          escape = true;
+        } else if (inSingle && ch === '\'') {
+          inSingle = false;
+        } else if (inDouble && ch === '"') {
+          inDouble = false;
+        }
+        i++;
+        continue;
+      }
+
+      if (next3 === "'''") {
+        inTripleSingle = true;
+        out += "'''";
+        i += 3;
+        continue;
+      }
+
+      if (next3 === '"""') {
+        inTripleDouble = true;
+        out += '"""';
+        i += 3;
+        continue;
+      }
+
+      if (ch === '#') {
+        inLineComment = true;
+        out += ' ';
+        i++;
+        continue;
+      }
+
+      if (ch === '\'') inSingle = true;
+      else if (ch === '"') inDouble = true;
+
+      out += ch;
+      i++;
+    }
+
+    return out;
+  }
+
+  static _isCommentedAtIndex(content, index, language) {
+    const lineStart = content.lastIndexOf('\n', Math.max(0, index - 1)) + 1;
+    const lineEnd = content.indexOf('\n', index);
+    const rawLine = content.slice(lineStart, lineEnd === -1 ? content.length : lineEnd);
+    const line = rawLine.trim();
+    const col = index - lineStart;
+
+    if (language === 'python') {
+      if (line.startsWith('#')) return true;
+      let inSingle = false;
+      let inDouble = false;
+      let escape = false;
+      for (let i = 0; i < col; i++) {
+        const ch = rawLine[i];
+        if (escape) {
+          escape = false;
+          continue;
+        }
+        if (ch === '\\') {
+          escape = true;
+          continue;
+        }
+        if (!inDouble && ch === '\'') inSingle = !inSingle;
+        else if (!inSingle && ch === '"') inDouble = !inDouble;
+        else if (!inSingle && !inDouble && ch === '#') return true;
+      }
+      return false;
+    }
+
+    if (line.startsWith('//') || line.startsWith('/*') || line.startsWith('*') || line.startsWith('*/')) {
+      return true;
+    }
+
+    let inSingle = false;
+    let inDouble = false;
+    let inTemplate = false;
+    let escape = false;
+    let inBlock = false;
+
+    for (let i = 0; i < col; i++) {
+      const ch = rawLine[i];
+      const next = rawLine[i + 1];
+      if (inBlock) {
+        if (ch === '*' && next === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (ch === '\\') {
+        escape = true;
+        continue;
+      }
+      if (inSingle) {
+        if (ch === '\'') inSingle = false;
+        continue;
+      }
+      if (inDouble) {
+        if (ch === '"') inDouble = false;
+        continue;
+      }
+      if (inTemplate) {
+        if (ch === '`') inTemplate = false;
+        continue;
+      }
+      if (ch === '\'') {
+        inSingle = true;
+        continue;
+      }
+      if (ch === '"') {
+        inDouble = true;
+        continue;
+      }
+      if (ch === '`') {
+        inTemplate = true;
+        continue;
+      }
+      if (ch === '/' && next === '*') {
+        inBlock = true;
+        i++;
+        continue;
+      }
+      if (ch === '/' && next === '/') {
+        return true;
+      }
+    }
+    return false;
   }
 }
 

@@ -144,8 +144,12 @@ function Analyze() {
                     path: fileNode.path || node.path || node.name,
                     type: fileNode.type || node.type || "file",
                     code: fileNode.code || "",
+                    language: fileNode.language || "",
+                    role: fileNode.role || "",
                     imports: fileNode.imports || [],
-                    functions: fileNode.functions || []
+                    functions: fileNode.functions || [],
+                    children: fileNode.children || [],
+                    fileCount: fileNode.fileCount || 0
                 });
                 setShowSummary(true);
                 return;
@@ -164,6 +168,8 @@ function Analyze() {
                     path: fileNode.path || traceNode.path,
                     type: "file",
                     code: fileNode.code || "",
+                    language: fileNode.language || "",
+                    role: fileNode.role || "",
                     imports: fileNode.imports || [],
                     functions: fileNode.functions || [],
                     highlightedFunction: traceNode.name

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { FaCopy, FaFileAlt, FaCode, FaTerminal, FaCube } from 'react-icons/fa';
 import './Summary.css';
 
@@ -10,6 +10,13 @@ function Summary({ selectedNode, username, repo }) {
     // Right sidebar local tabs: 'summary' or 'code'
     const [rightTab, setRightTab] = useState('summary');
     const [copied, setCopied] = useState(false);
+    const normalizedImports = useMemo(() => (
+        Array.isArray(selectedNode?.imports)
+            ? selectedNode.imports
+                .map(dep => (typeof dep === 'string' ? dep : dep?.name || dep?.path || dep?.source || ''))
+                .filter(Boolean)
+            : []
+    ), [selectedNode?.imports]);
 
     // Fetch summary when a node is selected
     useEffect(() => {
@@ -17,6 +24,8 @@ function Summary({ selectedNode, username, repo }) {
             setSummary(null);
             return;
         }
+
+        const controller = new AbortController();
 
         const fetchSummary = async () => {
             setLoading(true);
@@ -27,18 +36,41 @@ function Summary({ selectedNode, username, repo }) {
                 // Determine summary type based on node type
                 const summaryType = selectedNode.type === 'folder' ? 'folder' : 'file';
                 
-                // Create meaningful file content based on node type
+                // Build richer node context for better AI summaries
                 let fileContent = '';
                 if (summaryType === 'file') {
-                    fileContent = selectedNode.code 
-                        ? `File: ${selectedNode.name}\nPath: ${selectedNode.path || selectedNode.name}\n${selectedNode.code.substring(0, 1000)}`
-                        : `File: ${selectedNode.name}\nPath: ${selectedNode.path || selectedNode.name}\nThis is a ${selectedNode.name.split('.').pop() || 'code'} file in the repository.`;
+                    const codeSnippet = selectedNode.code
+                        ? selectedNode.code.slice(0, 12000)
+                        : 'Source code unavailable for this file.';
+                    const functionNames = (selectedNode.functions || []).map(fn => fn?.name).filter(Boolean).slice(0, 40);
+                    fileContent = [
+                        `File: ${selectedNode.name}`,
+                        `Path: ${selectedNode.path || selectedNode.name}`,
+                        `Language: ${selectedNode.language || 'unknown'}`,
+                        `Role: ${selectedNode.role || 'unknown'}`,
+                        `Imports (${normalizedImports.length}): ${normalizedImports.slice(0, 40).join(', ') || 'none'}`,
+                        `Functions (${functionNames.length}): ${functionNames.join(', ') || 'none'}`,
+                        '',
+                        'Code:',
+                        codeSnippet
+                    ].join('\n');
                 } else {
-                    fileContent = `Folder: ${selectedNode.name}\nPath: ${selectedNode.path || selectedNode.name}\nThis folder contains source code and project files.`;
+                    const children = Array.isArray(selectedNode.children) ? selectedNode.children : [];
+                    const childPreview = children
+                        .slice(0, 40)
+                        .map(child => `${child.type || 'node'}: ${child.name || child.path || 'unknown'}`)
+                        .join('\n');
+                    fileContent = [
+                        `Folder: ${selectedNode.name}`,
+                        `Path: ${selectedNode.path || selectedNode.name}`,
+                        `Direct Children: ${children.length}`,
+                        childPreview ? `Child nodes:\n${childPreview}` : 'Child nodes: unavailable'
+                    ].join('\n');
                 }
 
                 const response = await fetch('http://localhost:5000/summarize', {
                     method: 'POST',
+                    signal: controller.signal,
                     headers: {
                         'Content-Type': 'application/json',
                     },
@@ -57,21 +89,29 @@ function Summary({ selectedNode, username, repo }) {
                 }
 
                 const data = await response.json();
+                if (!data?.summary || typeof data.summary !== 'string') {
+                    throw new Error('Summary response is malformed.');
+                }
                 setSummary(data);
             } catch (err) {
+                if (err.name === 'AbortError') return;
                 setError(err.message);
                 console.error('Summary fetch error:', err);
             } finally {
-                setLoading(false);
+                if (!controller.signal.aborted) {
+                    setLoading(false);
+                }
             }
         };
 
         fetchSummary();
         
-        // If an active function trace is passed, auto-select code tab!
-        if (selectedNode.highlightedFunction) {
-            setRightTab('code');
-        }
+        // If an active function trace is passed, auto-select code tab
+        setRightTab(selectedNode.highlightedFunction ? 'code' : 'summary');
+
+        return () => {
+            controller.abort();
+        };
     }, [selectedNode, username, repo]);
 
     const handleCopyCode = () => {
@@ -185,11 +225,11 @@ function Summary({ selectedNode, username, repo }) {
                         </div>
 
                         {/* Render imports list */}
-                        {selectedNode.imports && selectedNode.imports.length > 0 && (
+                        {normalizedImports.length > 0 && (
                             <div className="node-details-section">
-                                <h4 className="meta-sec-title">Imports ({selectedNode.imports.length})</h4>
+                                <h4 className="meta-sec-title">Imports ({normalizedImports.length})</h4>
                                 <div className="imports-badges-grid">
-                                    {selectedNode.imports.map((dep, idx) => (
+                                    {normalizedImports.map((dep, idx) => (
                                         <span key={idx} className="import-capsule">
                                             <FaCube size={8} style={{ marginRight: '4px', opacity: 0.7 }} /> {dep}
                                         </span>
