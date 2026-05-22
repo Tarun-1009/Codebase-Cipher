@@ -77,7 +77,7 @@ function Tree({ flatNodes, flatEdges, onNodeClick }) {
                 maxZoom={2}
                 proOptions={{ hideAttribution: true }}
             >
-                <Background variant="dots" gap={20} size={1} color="#e2e8f0" />
+                <Background variant="dots" gap={20} size={1} color="rgba(15, 23, 42, 0.08)" />
                 <Controls showInteractive={false} />
             </ReactFlow>
         </div>

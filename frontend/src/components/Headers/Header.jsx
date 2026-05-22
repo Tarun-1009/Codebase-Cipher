@@ -31,7 +31,9 @@ const Header = ({ repoUrl, setRepoUrl, onAnalyze, onExport, branches = [], selec
           className="header-search-input"
           onKeyDown={handleKeyDown}
         />
-        
+      </div>
+
+      <div className="header-right">
         {branches && branches.length > 0 && (
           <select
             value={selectedBranch}
@@ -50,9 +52,7 @@ const Header = ({ repoUrl, setRepoUrl, onAnalyze, onExport, branches = [], selec
         <button onClick={onAnalyze} className="header-action-btn run-btn" title="Analyze Repository">
           <FaPlay size={10} style={{ marginRight: '6px' }} /> Analyze
         </button>
-      </div>
 
-      <div className="header-right">
         <button onClick={onExport} className="header-action-btn export-btn" title="Export Analysis as JSON">
           <FaDownload size={10} style={{ marginRight: '6px' }} /> Export Report
         </button>
