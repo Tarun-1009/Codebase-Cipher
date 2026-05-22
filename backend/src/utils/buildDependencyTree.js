@@ -59,8 +59,8 @@ async function getDefaultBranch(username, repo) {
 // ---------------------------------------------------------------------------
 // Main entry
 // ---------------------------------------------------------------------------
-async function BuildDependencyTree(username, repo) {
-  const branch = await getDefaultBranch(username, repo);
+async function BuildDependencyTree(username, repo, branchParam) {
+  const branch = branchParam || await getDefaultBranch(username, repo);
   const zipUrl = `https://github.com/${username}/${repo}/zipball/${branch}/`;
 
   let response;
@@ -129,10 +129,6 @@ async function BuildDependencyTree(username, repo) {
               fileEndpoints.forEach(ep => {
                 ep.id = `${ep.method}:${ep.path}`;
                 ep.handlerFile = fullPath;
-                // Resolve handlerFunctionId if it's a named function
-                if (ep.handlerFunction && !ep.handlerFunction.startsWith('anonymous')) {
-                  ep.handlerFunctionId = `${fullPath}#${ep.handlerFunction}`;
-                }
               });
               allEndpoints.push(...fileEndpoints);
 
@@ -190,9 +186,12 @@ async function BuildDependencyTree(username, repo) {
       return;
     }
 
-    // Strategy C: Named function referenced by endpoint (for Python/Java)
-    if (ep.handlerFunction && !ep.handlerFunction.startsWith('anonymous')) {
-      const named = fileFuncs.find(f => f.name === ep.handlerFunction);
+    // Strategy C: Named function referenced by endpoint
+    if (ep.handlerFunction && !ep.handlerFunction.startsWith('anonymous') && !ep.handlerFunction.includes('By')) {
+      let named = fileFuncs.find(f => f.name === ep.handlerFunction);
+      if (!named) {
+        named = allFunctions.find(f => f.name === ep.handlerFunction);
+      }
       if (named) { ep.handlerFunctionId = named.id; return; }
     }
 
@@ -203,6 +202,17 @@ async function BuildDependencyTree(username, repo) {
       if (dist < minDist) { minDist = dist; closest = f; }
     });
     if (closest && minDist <= 10) ep.handlerFunctionId = closest.id;
+  });
+
+  // Post-resolve: update handlerFunction if a real (non-synthetic) function is linked
+  allEndpoints.forEach(ep => {
+    if (ep.handlerFunctionId) {
+      const parts = ep.handlerFunctionId.split('#');
+      const funcName = parts[parts.length - 1];
+      if (funcName && !funcName.startsWith('__route_')) {
+        ep.handlerFunction = funcName;
+      }
+    }
   });
 
   // Deduplicate endpoints by id (same path+method can appear in multiple route files)
@@ -220,7 +230,7 @@ async function BuildDependencyTree(username, repo) {
   resolveEndpointCallChains(deduplicatedEndpoints, allFunctions);
 
   // 4. Build traceability graph nodes + edges
-  const { nodes: traceNodes, edges: traceEdges } = buildTraceabilityGraph(allFunctions, fileMap);
+  const { nodes: traceNodes, edges: traceEdges } = buildTraceabilityGraph(allFunctions, fileMap, deduplicatedEndpoints);
 
   // 5. Build sequences (one per endpoint)
   const sequences = buildSequences(deduplicatedEndpoints, allFunctions, fileMap);
@@ -284,6 +294,7 @@ function _insertFileNode(tree, filePath, info) {
           path: subPath,
           language: info.language,
           role: info.role,
+          code: info.code,
           // Rich imports: [{ name, path, isExternal, line }]
           imports: info.imports,
           // Serialized function summaries

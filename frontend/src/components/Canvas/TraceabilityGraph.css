@@ -342,16 +342,28 @@
     letter-spacing: 0.05em;
 }
 
-.node-branch-tag.success { background: #d1fae5; color: #065f46; }
-.node-branch-tag.invalid-creds { background: #ffedd5; color: #9a3412; }
-.node-branch-tag.user-not-found { background: #dbeafe; color: #1e40af; }
+.node-branch-tag.success {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.node-branch-tag.invalid-creds {
+    background: #ffedd5;
+    color: #9a3412;
+}
+
+.node-branch-tag.user-not-found {
+    background: #dbeafe;
+    color: #1e40af;
+}
 
 /* THE BRANCHES ROW CONTAINERS */
 .flow-branches-row {
     display: flex;
     flex-direction: column;
     gap: 24px;
-    padding-left: 230px; /* Aligns with second node */
+    padding-left: 230px;
+    /* Aligns with second node */
     position: relative;
 }
 
@@ -412,11 +424,11 @@
     border-left: 6px solid #cbd5e1;
 }
 
-.flow-node-card.selected + .flow-path-arrow-right {
+.flow-node-card.selected+.flow-path-arrow-right {
     background: #10b981;
 }
 
-.flow-node-card.selected + .flow-path-arrow-right::after {
+.flow-node-card.selected+.flow-path-arrow-right::after {
     border-left-color: #10b981;
 }
 
@@ -451,10 +463,21 @@
     border-radius: 50%;
 }
 
-.legend-color-dot.entry { background: #6366f1; }
-.legend-color-dot.success { background: #10b981; }
-.legend-color-dot.invalid { background: #f97316; }
-.legend-color-dot.notfound { background: #3b82f6; }
+.legend-color-dot.entry {
+    background: #6366f1;
+}
+
+.legend-color-dot.success {
+    background: #10b981;
+}
+
+.legend-color-dot.invalid {
+    background: #f97316;
+}
+
+.legend-color-dot.notfound {
+    background: #3b82f6;
+}
 
 .legend-stats-metrics {
     font-size: 0.68rem;
