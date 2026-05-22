@@ -160,10 +160,17 @@ function buildDependencyData(treeRoot) {
 // ---------------------------------------------------------------------------
 const HandleSet = () => (
     <>
-        <Handle type="target" position={Position.Top} id="t" style={{ visibility: 'hidden' }} />
-        <Handle type="source" position={Position.Bottom} id="b" style={{ visibility: 'hidden' }} />
-        <Handle type="target" position={Position.Left} id="l" style={{ visibility: 'hidden' }} />
-        <Handle type="source" position={Position.Right} id="r" style={{ visibility: 'hidden' }} />
+        {/* Source Handles */}
+        <Handle type="source" position={Position.Top} id="top-s" style={{ visibility: 'hidden' }} />
+        <Handle type="source" position={Position.Bottom} id="bottom-s" style={{ visibility: 'hidden' }} />
+        <Handle type="source" position={Position.Left} id="left-s" style={{ visibility: 'hidden' }} />
+        <Handle type="source" position={Position.Right} id="right-s" style={{ visibility: 'hidden' }} />
+
+        {/* Target Handles */}
+        <Handle type="target" position={Position.Top} id="top-t" style={{ visibility: 'hidden' }} />
+        <Handle type="target" position={Position.Bottom} id="bottom-t" style={{ visibility: 'hidden' }} />
+        <Handle type="target" position={Position.Left} id="left-t" style={{ visibility: 'hidden' }} />
+        <Handle type="target" position={Position.Right} id="right-t" style={{ visibility: 'hidden' }} />
     </>
 );
 

@@ -33,7 +33,8 @@ const roleColors = {
     utility: '#64748b',
     server: '#3b82f6',
     entry: '#6366f1',
-    response: '#10b981'
+    response: '#10b981',
+    error: '#ef4444'
 };
 
 const HandleSet = () => (
@@ -264,74 +265,136 @@ export default function TraceabilityGraph({ traceability, apiEndpoints = [], onN
                                 className="flow-diagram-canvas"
                                 style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top left' }}
                             >
-                                {/* Happy path */}
-                                <div className="flow-happy-path">
+                                {/* Unified Step Columns (Main flow + corresponding error/alternative branches aligned directly below) */}
+                                <div className="flow-columns-container" style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', position: 'relative' }}>
                                     {flowTraces.steps.map((step, idx) => {
+                                        // Find branches belonging to this step component
+                                        const stepBranches = flowTraces.branches.filter(
+                                            b => b.parentStepComponent === step.component
+                                        );
+
                                         const isSelected = selectedStep?.id === step.id;
                                         const isEntry = step.type === 'entry';
+
                                         return (
-                                            <div key={step.id} style={{ display: 'flex', alignItems: 'center' }}>
-                                                <div
-                                                    className={`flow-node-card ${isSelected ? 'selected' : ''} ${isEntry ? 'entry-point' : ''}`}
-                                                    onClick={() => setSelectedStep(step)}
-                                                >
-                                                    {isEntry && <span className="node-branch-tag success">Entry</span>}
-                                                    <div className="node-card-header">
-                                                        <span className="node-step-number">{step.num}</span>
-                                                        <span className="node-latency-pill">{step.latency}</span>
+                                            <div key={step.id} className="flow-step-column" style={{ display: 'flex', flexDirection: 'column', gap: '32px', alignItems: 'center', width: '190px', position: 'relative', flexShrink: 0 }}>
+                                                {/* The main Happy-Path step node */}
+                                                <div style={{ position: 'relative', width: '100%' }}>
+                                                    <div
+                                                        className={`flow-node-card ${isSelected ? 'selected' : ''} ${isEntry ? 'entry-point' : ''}`}
+                                                        style={{ width: '100%', margin: 0 }}
+                                                        onClick={() => setSelectedStep(step)}
+                                                    >
+                                                        {isEntry && <span className="node-branch-tag success">Entry</span>}
+                                                        <div className="node-card-header">
+                                                            <span className="node-step-number">{step.num}</span>
+                                                            <span className="node-latency-pill">{step.latency}</span>
+                                                        </div>
+                                                        <span className="node-component-title">{step.component}</span>
+                                                        <span className="node-function-name" title={step.name}>{step.name}</span>
+                                                        <span
+                                                            className="node-file-path"
+                                                            title={step.file}
+                                                            style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                                                            onClick={e => {
+                                                                e.stopPropagation();
+                                                                onNodeClick?.({ path: step.file, name: step.name });
+                                                            }}
+                                                        >{step.file}</span>
                                                     </div>
-                                                    <span className="node-component-title">{step.component}</span>
-                                                    <span className="node-function-name" title={step.name}>{step.name}</span>
-                                                    <span
-                                                        className="node-file-path"
-                                                        title={step.file}
-                                                        style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                                                        onClick={e => {
-                                                            e.stopPropagation();
-                                                            onNodeClick?.({ path: step.file, name: step.name });
-                                                        }}
-                                                    >{step.file}</span>
+
+                                                    {/* Connection line/arrow to the next happy-path node */}
+                                                    {idx < flowTraces.steps.length - 1 && (
+                                                        <div className="flow-path-arrow-right" style={{ position: 'absolute', right: '-40px', top: '50%', transform: 'translateY(-50%)', zIndex: 10 }} />
+                                                    )}
                                                 </div>
-                                                {idx < flowTraces.steps.length - 1 && <div className="flow-path-arrow-right" />}
+
+                                                {/* Render all branches of this step vertically below it */}
+                                                {stepBranches.length > 0 && (
+                                                    <div className="flow-step-branches" style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%', alignItems: 'center', position: 'relative' }}>
+                                                        {/* Vertical line linking parent to the first branch */}
+                                                        <div className="flow-branch-vertical-line" style={{ width: '2px', height: '32px', background: '#cbd5e1', position: 'absolute', top: '-32px', left: '50%', transform: 'translateX(-50%)' }}>
+                                                            <div style={{
+                                                                position: 'absolute',
+                                                                bottom: 0,
+                                                                left: '50%',
+                                                                transform: 'translateX(-50%)',
+                                                                width: 0,
+                                                                height: 0,
+                                                                borderLeft: '4px solid transparent',
+                                                                borderRight: '4px solid transparent',
+                                                                borderTop: '6px solid #cbd5e1'
+                                                            }} />
+                                                        </div>
+                                                        
+                                                        {stepBranches.map((branch, bIdx) => (
+                                                            <div key={bIdx} className="branch-path-container" style={{ width: '100%', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                                                {/* Vertical line between multiple stacked branches */}
+                                                                {bIdx > 0 && (
+                                                                    <div className="flow-branch-vertical-line" style={{ width: '2px', height: '24px', background: '#cbd5e1', position: 'absolute', top: '-24px', left: '50%', transform: 'translateX(-50%)' }}>
+                                                                        <div style={{
+                                                                            position: 'absolute',
+                                                                            bottom: 0,
+                                                                            left: '50%',
+                                                                            transform: 'translateX(-50%)',
+                                                                            width: 0,
+                                                                            height: 0,
+                                                                            borderLeft: '4px solid transparent',
+                                                                            borderRight: '4px solid transparent',
+                                                                            borderTop: '6px solid #cbd5e1'
+                                                                        }} />
+                                                                    </div>
+                                                                )}
+                                                                
+                                                                {branch.steps?.map((bStep, sIdx) => {
+                                                                    const isBSelected = selectedStep?.id === bStep.id;
+                                                                    const isErrorBranch = branch.isError === true;
+                                                                    return (
+                                                                        <div key={bStep.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                                                                            <div
+                                                                                className={`flow-node-card ${isBSelected ? 'selected' : ''} ${isErrorBranch ? 'branch-error' : 'branch-alternative'}`}
+                                                                                style={{ width: '100%', margin: 0 }}
+                                                                                onClick={() => setSelectedStep(bStep)}
+                                                                            >
+                                                                                {sIdx === 0 && (
+                                                                                    <span className={`node-branch-tag ${isErrorBranch ? 'error-flow' : 'alternative-flow'}`}>
+                                                                                        {branch.name || 'Branch'}
+                                                                                    </span>
+                                                                                )}
+                                                                                <div className="node-card-header">
+                                                                                    <span className="node-step-number">{bStep.num}</span>
+                                                                                    <span className="node-latency-pill">{bStep.latency}</span>
+                                                                                </div>
+                                                                                <span className="node-component-title">{bStep.component}</span>
+                                                                                <span className="node-function-name" title={bStep.name}>{bStep.name}</span>
+                                                                                <span className="node-file-path" title={bStep.file}>{bStep.file}</span>
+                                                                            </div>
+                                                                            {sIdx < branch.steps.length - 1 && (
+                                                                                <div className="flow-branch-vertical-line" style={{ width: '2px', height: '24px', background: '#cbd5e1', margin: '4px 0', position: 'relative' }}>
+                                                                                    <div style={{
+                                                                                        position: 'absolute',
+                                                                                        bottom: 0,
+                                                                                        left: '50%',
+                                                                                        transform: 'translateX(-50%)',
+                                                                                        width: 0,
+                                                                                        height: 0,
+                                                                                        borderLeft: '4px solid transparent',
+                                                                                        borderRight: '4px solid transparent',
+                                                                                        borderTop: '6px solid #cbd5e1'
+                                                                                    }} />
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     })}
                                 </div>
-
-                                {/* Branches */}
-                                {flowTraces.branches.length > 0 && (
-                                    <div className="flow-branches-row">
-                                        {flowTraces.branches.map((branch, bIdx) => (
-                                            <div key={bIdx} className="branch-path-container">
-                                                {branch.steps?.map((step, sIdx) => {
-                                                    const isSelected = selectedStep?.id === step.id;
-                                                    return (
-                                                        <div key={step.id} style={{ display: 'flex', alignItems: 'center' }}>
-                                                            <div
-                                                                className={`flow-node-card ${isSelected ? 'selected' : ''} branch-alternative`}
-                                                                onClick={() => setSelectedStep(step)}
-                                                            >
-                                                                {sIdx === 0 && (
-                                                                    <span className="node-branch-tag alternative-flow">
-                                                                        {branch.name || 'Branch'}
-                                                                    </span>
-                                                                )}
-                                                                <div className="node-card-header">
-                                                                    <span className="node-step-number">{step.num}</span>
-                                                                    <span className="node-latency-pill">{step.latency}</span>
-                                                                </div>
-                                                                <span className="node-component-title">{step.component}</span>
-                                                                <span className="node-function-name" title={step.name}>{step.name}</span>
-                                                                <span className="node-file-path" title={step.file}>{step.file}</span>
-                                                            </div>
-                                                            {sIdx < branch.steps.length - 1 && <div className="flow-path-arrow-right" />}
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
 
                             {/* Legend */}
@@ -339,8 +402,11 @@ export default function TraceabilityGraph({ traceability, apiEndpoints = [], onN
                                 <div className="legend-items-group">
                                     <div className="legend-item"><span className="legend-color-dot entry" /> Entry Point</div>
                                     <div className="legend-item"><span className="legend-color-dot success" /> Main Flow</div>
-                                    {flowTraces.branches.length > 0 && (
+                                    {flowTraces.branches.some(b => !b.isError) && (
                                         <div className="legend-item"><span className="legend-color-dot alternative" /> Alternative Branch</div>
+                                    )}
+                                    {flowTraces.branches.some(b => b.isError) && (
+                                        <div className="legend-item"><span className="legend-color-dot error-dot" /> Error Branch</div>
                                     )}
                                 </div>
                                 <div className="legend-stats-metrics">
