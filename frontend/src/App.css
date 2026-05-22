@@ -7,25 +7,38 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  background: var(--bg-home);
 }
 
-/* Background */
+/* Background - Technical Mesh Gradient */
 .home-bg {
   position: absolute;
   inset: 0;
-  background-image: url('/src/assets/hero_bg.png');
-  background-size: cover;
-  background-position: center;
-  filter: brightness(0.55);
+  background: var(--bg-home-gradient);
   z-index: 0;
 }
 
-/* Soft vignette on top of bg */
+/* Technical grid layer overlay */
+.home-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(var(--home-grid-line) 1px, transparent 1px),
+                    linear-gradient(90deg, var(--home-grid-line) 1px, transparent 1px);
+  background-size: 44px 44px;
+  background-position: center;
+  mask-image: radial-gradient(ellipse at center, black 40%, transparent 85%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 85%);
+  opacity: 0.85;
+}
+
+/* Glowing overlay spotlight */
 .home-bg::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at center, transparent 30%, rgba(5, 8, 15, 0.7) 100%);
+  background: var(--home-spotlight);
+  pointer-events: none;
 }
 
 /* Content layer */
@@ -35,51 +48,59 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.4rem;
+  gap: 1.6rem;
   text-align: center;
   padding: 0 1.5rem;
 }
 
 /* Logo / Title */
 .home-title {
-  font-size: 2rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  color: #fff;
+  font-size: 3.2rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--text-primary);
+  line-height: 1.1;
+  text-shadow: 0 0 40px rgba(99, 102, 241, 0.1);
 }
 
 .home-title span {
-  background: linear-gradient(90deg, #00d4ff, #a855f7);
+  background: linear-gradient(90deg, #00d4ff 0%, #a855f7 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  filter: drop-shadow(0 2px 10px rgba(0, 212, 255, 0.35));
 }
 
 .home-sub {
-  font-size: 0.92rem;
-  color: rgba(255, 255, 255, 0.45);
+  font-size: 1.05rem;
+  color: var(--text-secondary);
   font-weight: 400;
-  margin-top: -0.6rem;
+  margin-top: -0.5rem;
+  max-width: 500px;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
 }
 
-/* Search bar */
+/* Search bar - Premium Glowing Container */
 .search-bar {
   display: flex;
   align-items: center;
   width: 100%;
-  max-width: 540px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 12px;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  transition: border-color 0.25s, box-shadow 0.25s;
+  max-width: 580px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: all var(--transition-normal);
   overflow: hidden;
+  box-shadow: var(--home-shadow);
 }
 
 .search-bar:focus-within {
-  border-color: rgba(0, 212, 255, 0.5);
-  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.08), 0 8px 32px rgba(0, 0, 0, 0.3);
+  border-color: rgba(99, 102, 241, 0.65);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--home-focus-shadow);
 }
 
 .search-bar input {
@@ -87,35 +108,37 @@
   background: transparent;
   border: none;
   outline: none;
-  padding: 0.9rem 1rem 0.9rem 1.2rem;
-  font-size: 0.9rem;
-  font-family: 'JetBrains Mono', monospace;
-  color: rgba(255, 255, 255, 0.85);
+  padding: 1.1rem 1.4rem;
+  font-size: 0.95rem;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
   min-width: 0;
 }
 
 .search-bar input::placeholder {
-  color: rgba(255, 255, 255, 0.25);
+  color: var(--text-muted);
 }
 
 .search-bar button {
-  margin: 0.35rem;
-  padding: 0.65rem 1.4rem;
-  border-radius: 8px;
+  margin: 0.4rem;
+  padding: 0.75rem 1.8rem;
+  border-radius: 10px;
   border: none;
-  background: linear-gradient(135deg, #00d4ff, #a855f7);
+  background: linear-gradient(135deg, var(--accent-primary) 0%, #4f46e5 100%);
   color: #fff;
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   font-weight: 600;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   cursor: pointer;
   white-space: nowrap;
-  transition: opacity 0.2s, transform 0.2s;
+  transition: all var(--transition-normal);
   flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
 }
 
 .search-bar button:hover {
-  opacity: 0.9;
+  background: linear-gradient(135deg, #7c3aed 0%, var(--accent-primary) 100%);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.55), 0 0 12px rgba(99, 102, 241, 0.3);
   transform: translateY(-1px);
 }
 

@@ -40,6 +40,7 @@ function Analyze() {
     // Left sidebar navigation tab selection
     const [activeTab, setActiveTab] = useState("dashboard"); // 'dashboard', 'tree', 'dependencies', 'traceability', 'api'
     const [showExplorer, setShowExplorer] = useState(true);
+    const [showSummary, setShowSummary] = useState(true);
     
     // Top Bar Address input
     const [repoUrl, setRepoUrl] = useState(`https://github.com/${username}/${repo}`);
@@ -146,10 +147,12 @@ function Analyze() {
                     imports: fileNode.imports || [],
                     functions: fileNode.functions || []
                 });
+                setShowSummary(true);
                 return;
             }
         }
         setSelectedNode(node);
+        setShowSummary(true);
     };
 
     const handleTraceabilityClick = (traceNode) => {
@@ -165,6 +168,7 @@ function Analyze() {
                     functions: fileNode.functions || [],
                     highlightedFunction: traceNode.name
                 });
+                setShowSummary(true);
                 return;
             }
         }
@@ -173,6 +177,7 @@ function Analyze() {
             path: traceNode.path,
             type: "file"
         });
+        setShowSummary(true);
     };
     // Handle Top Bar actions
     const handleAnalyze = () => {
@@ -565,10 +570,22 @@ function Analyze() {
                             repoTree={repoData?.tree || {}} 
                         />
                     )}
+                    
+                    {/* Floating Workspace Toggle */}
+                    {activeTab !== "api" && activeTab !== "traceability" && (
+                        <button 
+                            onClick={() => setShowSummary(!showSummary)}
+                            className="floating-summary-toggle-btn"
+                            title={showSummary ? "Hide Analysis Workspace" : "Show Analysis Workspace"}
+                        >
+                            {showSummary ? <FaEyeSlash /> : <FaEye />}
+                            <span>{showSummary ? "Hide Workspace" : "Show Workspace"}</span>
+                        </button>
+                    )}
                 </div>
 
                 {/* Right Sidebar layout for AI summaries and Code Viewer */}
-                {activeTab !== "api" && activeTab !== "traceability" && (
+                {activeTab !== "api" && activeTab !== "traceability" && showSummary && (
                     <div className="summary">
                         <span className="panel-label">Analysis Workspace</span>
                         <Summary selectedNode={selectedNode} username={username} repo={repo} />
