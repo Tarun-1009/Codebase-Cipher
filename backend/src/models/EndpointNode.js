@@ -1,44 +1,42 @@
 /**
  * EndpointNode Model
- * Represents an API endpoint declaration
- * ID format: METHOD:/path (e.g., GET:/, POST:/api/users)
+ * Represents an API endpoint declaration.
+ * ID format: "METHOD:/path" (e.g. "POST:/api/auth/login")
  */
 class EndpointNode {
   constructor(data = {}) {
-    this.method = data.method || 'GET'; // GET, POST, PUT, DELETE, PATCH
+    this.method = data.method || 'GET';
     this.path = data.path || '';
-    // Generate ID in format: METHOD:/path
     this.id = data.id || `${this.method}:${this.path}`;
-    
-    this.handler = data.handler || '';
-    this.handlerFunctionId = data.handlerFunctionId || ''; // Format: file#functionName
+
     this.handlerFile = data.handlerFile || '';
-    this.handlerLine = data.handlerLine || 0; // Line where handler is defined
-    this.line = data.line || this.handlerLine || 0; // Alias for handlerLine
-    
+    this.handlerLine = data.handlerLine || 0;
+    this.handlerFunction = data.handlerFunction || ''; // name of the function that handles this route
+    this.handlerFunctionId = data.handlerFunctionId || ''; // full ID: file#funcName (resolved after parsing)
+
+    this.framework = data.framework || null; // 'express' | 'fastapi' | 'flask' | 'spring'
+
     this.middleware = data.middleware || [];
-    this.requestSchema = data.requestSchema || {
-      params: {},
-      body: {},
-      headers: {}
-    };
-    this.responseSchema = data.responseSchema || {
-      status: 200,
-      body: {}
-    };
-    this.description = data.description || '';
-    this.tags = data.tags || [];
-    this.framework = data.framework || null;
+
+    // Populated by traceabilityEngine.resolveEndpointCallChains
+    this.callChain = data.callChain || []; // ordered list of function IDs from handler → leaf
+
+    // Populated by traceabilityEngine.buildSequences
+    this.sequence = data.sequence || null; // { steps[], branches[] }
   }
 
   toJSON() {
     return {
       id: this.id,
-      path: this.path,
       method: this.method,
-      handlerFunctionId: this.handlerFunctionId,
+      path: this.path,
       handlerFile: this.handlerFile,
-      line: this.line
+      handlerLine: this.handlerLine,
+      handlerFunction: this.handlerFunction,
+      handlerFunctionId: this.handlerFunctionId,
+      framework: this.framework,
+      callChain: this.callChain,
+      middleware: this.middleware
     };
   }
 }

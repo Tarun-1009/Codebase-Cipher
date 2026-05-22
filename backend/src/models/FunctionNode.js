@@ -1,49 +1,47 @@
 /**
  * FunctionNode Model
- * Represents a function declaration in source code
- * ID format: file/path/to/file.js#functionName
+ * Represents a function/method declaration in source code.
+ * ID format: "path/to/file.js#functionName"
  */
 class FunctionNode {
   constructor(data = {}) {
-    this.file = data.file || '';
+    this.id = data.id || `${data.file || ''}#${data.name || ''}`;
     this.name = data.name || '';
-    // Generate ID in format: file#functionName
-    this.id = data.id || `${this.file}#${this.name}`;
-    
-    this.type = data.type || 'function'; // 'function', 'method', 'arrow', 'component'
-    
-    // Line tracking
+    this.file = data.file || '';
+
+    this.type = data.type || 'function'; // 'function' | 'method' | 'arrow'
     this.line = data.line || 0;
     this.startLine = data.startLine || data.line || 0;
     this.endLine = data.endLine || data.line || 0;
-    
+
     this.parameters = data.parameters || [];
     this.returnType = data.returnType || 'void';
-    this.scope = data.scope || 'private'; // 'public', 'private', 'exported'
+    this.scope = data.scope || 'private'; // 'exported' | 'private'
     this.isAsync = data.isAsync || false;
-    this.isClass = data.isClass || false;
-    this.className = data.className || null;
-    
-    // Relationships
-    this.calledBy = data.calledBy || [];
-    this.calls = data.calls || [];
-    
-    this.description = data.description || '';
-    this.codeSnippet = data.codeSnippet || '';
     this.language = data.language || 'unknown';
+
+    // Relationships (populated by traceabilityEngine.resolveCallGraph)
+    this.calls = data.calls || [];     // array of FunctionNode IDs this function calls
+    this.calledBy = data.calledBy || []; // array of FunctionNode IDs that call this function
+
+    // Raw body text used for call resolution — NOT serialized to JSON
+    this.bodyText = data.bodyText || '';
   }
 
   toJSON() {
     return {
       id: this.id,
       name: this.name,
+      file: this.file,
       type: this.type,
       line: this.line,
       startLine: this.startLine,
       endLine: this.endLine,
       isAsync: this.isAsync,
       parameters: this.parameters,
-      calls: this.calls
+      scope: this.scope,
+      calls: this.calls,
+      calledBy: this.calledBy
     };
   }
 }

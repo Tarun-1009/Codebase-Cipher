@@ -45,6 +45,8 @@ function Analyze() {
 
     // Fetch repository data
     useEffect(() => {
+        setRepoData(null);
+        setError(null);
         setLoading(true);
         setSelectedNode(null);
         setActiveTab("dashboard");
@@ -131,29 +133,6 @@ function Analyze() {
             type: "file"
         });
     };
-
-    const handleApiClick = (handlerFile) => {
-        if (repoData && repoData.tree) {
-            const fileNode = findNodeInTreeByPath(repoData.tree, handlerFile);
-            if (fileNode) {
-                setSelectedNode({
-                    name: fileNode.name,
-                    path: fileNode.path || handlerFile,
-                    type: "file",
-                    code: fileNode.code || "",
-                    imports: fileNode.imports || [],
-                    functions: fileNode.functions || []
-                });
-                return;
-            }
-        }
-        setSelectedNode({
-            name: handlerFile.split("/").pop(),
-            path: handlerFile,
-            type: "file"
-        });
-    };
-
     // Handle Top Bar actions
     const handleAnalyze = () => {
         if (!repoUrl || !repoUrl.trim()) return;
@@ -236,7 +215,7 @@ function Analyze() {
                             </div>
                             <div className="meta-row">
                                 <span>Frameworks:</span>
-                                <strong>{repoData?.repository?.frameworks?.join(", ") || "None"}</strong>
+                                <strong>{repoData?.metadata?.frameworks?.join(", ") || "None"}</strong>
                             </div>
                             <div className="meta-row">
                                 <span>Status:</span>
@@ -299,15 +278,15 @@ function Analyze() {
                         <div className="meta-card-body">
                             <div className="meta-row">
                                 <span>Total Functions:</span>
-                                <strong>{repoData?.traceability?.functions?.length || 0}</strong>
+                                <strong>{repoData?.metadata?.totalFunctions || 0}</strong>
                             </div>
                             <div className="meta-row">
                                 <span>Defined Calls:</span>
-                                <strong>{repoData?.traceability?.callGraph?.edges?.length || 0}</strong>
+                                <strong>{repoData?.traceability?.edges?.length || 0}</strong>
                             </div>
                             <div className="meta-row">
                                 <span>Entry Points:</span>
-                                <strong>{repoData?.traceability?.callGraph?.metadata?.entryPoints?.length || 0}</strong>
+                                <strong>{repoData?.apiEndpoints?.length || 0}</strong>
                             </div>
                         </div>
                     </div>
@@ -496,7 +475,7 @@ function Analyze() {
                                     <div className="ecosystem-body">
                                         <div className="ecosystem-item">
                                             <div className="item-title">Ecosystem Name</div>
-                                            <div className="item-value">{repoData?.repository?.frameworks?.join(", ") || "Vanilla JS/TS"}</div>
+                                            <div className="item-value">{repoData?.metadata?.frameworks?.join(", ") || "Vanilla JS/TS"}</div>
                                         </div>
                                         <div className="ecosystem-item">
                                             <div className="item-title">Platform</div>
@@ -529,8 +508,8 @@ function Analyze() {
                     )}
                     
                     {activeTab === "traceability" && (
-                        <TraceabilityGraph 
-                            traceability={repoData.traceability} 
+                        <TraceabilityGraph
+                            traceability={repoData?.traceability || null}
                             apiEndpoints={repoData?.apiEndpoints || []}
                             onNodeClick={handleTraceabilityClick}
                         />
