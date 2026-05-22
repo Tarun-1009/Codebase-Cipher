@@ -10,9 +10,9 @@ import { resolveIcon } from '../../utils/icons';
 
 /* Folder node */
 const FolderNode = ({ data }) => {
-    const { label, onNodeClick } = data;
+    const { label, path, onNodeClick } = data;
     return (
-        <div className="tree-node-card tree-node-folder" style={{ cursor: 'pointer' }} onClick={() => onNodeClick?.({ name: label, type: 'folder' })}>
+        <div className="tree-node-card tree-node-folder" style={{ cursor: 'pointer' }} onClick={() => onNodeClick?.({ name: label, path, type: 'folder' })}>
             <Handle type="target" position={Position.Left} className="tree-handle" />
             <span className="tree-node-icon">
                 <FaFolder color="#E8A838" size={14} />
@@ -25,10 +25,10 @@ const FolderNode = ({ data }) => {
 
 /* File node */
 const FileNode = ({ data }) => {
-    const { label, onNodeClick } = data;
+    const { label, path, onNodeClick } = data;
     const { Icon, color } = resolveIcon(label);
     return (
-        <div className="tree-node-card tree-node-file" style={{ cursor: 'pointer' }} onClick={() => onNodeClick?.({ name: label, type: 'file' })}>
+        <div className="tree-node-card tree-node-file" style={{ cursor: 'pointer' }} onClick={() => onNodeClick?.({ name: label, path, type: 'file' })}>
             <Handle type="target" position={Position.Left} className="tree-handle" />
             <span className="tree-node-icon">
                 <Icon color={color} size={14} />

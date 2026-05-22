@@ -1,6 +1,21 @@
 // Import axios for making HTTP requests to external APIs
 const axios = require('axios');
 
+function getGroqApiKey() {
+    const rawKey = process.env.GROQ_API_KEY || '';
+    const apiKey = rawKey.trim().replace(/^['"]|['"]$/g, '');
+
+    if (!apiKey || apiKey === 'your_groq_api_key_here') {
+        throw new Error('GROQ_API_KEY is missing in backend/.env. Add a valid Groq API key and restart the backend server.');
+    }
+
+    if (!apiKey.startsWith('gsk_') || apiKey.length < 40) {
+        throw new Error('GROQ_API_KEY format looks invalid. Regenerate a key from Groq Console and update backend/.env.');
+    }
+
+    return apiKey;
+}
+
 // Define the async function that generates summaries based on user input
 // Parameters:
 // - username: GitHub username
@@ -21,15 +36,15 @@ async function generateSummary(username, repo, summaryType, targetPath, fileCont
 
         // Check if user wants summary of entire repository
         if (summaryType === 'repo') {
-            summaryPrompt = `Please provide a concise and clear summary of the following GitHub repository structure and its purpose:\n\nRepository: ${username}/${repo}\n\nContent:\n${fileContent}`;
+            summaryPrompt = `You are a code analysis assistant. Summarize only the provided repository context.\nOutput exactly 3 short sections: Purpose, Architecture, Key Components.\nDo not invent missing details.\n\nRepository: ${username}/${repo}\n\nContext:\n${fileContent}`;
         }
         // Check if user wants summary of a specific file
         else if (summaryType === 'file') {
-            summaryPrompt = `Please provide a concise and clear summary of the following source code file:\n\nFile: ${targetPath}\nRepository: ${username}/${repo}\n\nCode:\n${fileContent}`;
+            summaryPrompt = `You are a code analysis assistant. Summarize only the provided file context and code.\nOutput exactly 4 short sections: File Purpose, Main Logic, Important Functions, Risks/Notes.\nDo not invent behavior not present in the code.\n\nFile: ${targetPath}\nRepository: ${username}/${repo}\n\nContext:\n${fileContent}`;
         }
         // Check if user wants summary of a specific folder
         else if (summaryType === 'folder') {
-            summaryPrompt = `Please provide a concise and clear summary of the following folder structure and its contents:\n\nFolder: ${targetPath}\nRepository: ${username}/${repo}\n\nContent:\n${fileContent}`;
+            summaryPrompt = `You are a code analysis assistant. Summarize only the provided folder context.\nOutput exactly 3 short sections: Folder Role, Notable Contents, How It Fits In Project.\nDo not invent files that are not listed.\n\nFolder: ${targetPath}\nRepository: ${username}/${repo}\n\nContext:\n${fileContent}`;
         }
         // If summaryType is invalid, throw an error
         else {
@@ -39,8 +54,10 @@ async function generateSummary(username, repo, summaryType, targetPath, fileCont
         // Define the Groq API endpoint for generating content
         const groqApiUrl = 'https://api.groq.com/openai/v1/chat/completions';
 
+        const groqApiKey = getGroqApiKey();
+
         // Debug: Log that we're about to make the API call
-        console.log('Making Groq API call with key:', process.env.GROQ_API_KEY ? 'Key exists' : 'Key is undefined');
+        console.log('Making Groq API call with key:', groqApiKey ? 'Key exists' : 'Key is undefined');
 
         // Set up the request configuration with authentication and parameters
         const groqConfig = {
@@ -51,7 +68,7 @@ async function generateSummary(username, repo, summaryType, targetPath, fileCont
             // Prepare headers with authorization using the Groq API key
             headers: {
                 // Include the Bearer token for authentication using the API key from .env file
-                'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+                'Authorization': `Bearer ${groqApiKey}`,
                 // Specify that we're sending JSON data
                 'Content-Type': 'application/json',
             },
