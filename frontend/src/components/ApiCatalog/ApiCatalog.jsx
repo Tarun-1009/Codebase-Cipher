@@ -23,140 +23,77 @@ import './ApiCatalog.css';
 // Pagination settings
 const ITEMS_PER_PAGE = 7;
 
-// Dynamic Metadata Helper to generate production-grade mock details based on paths & methods
-function getEndpointMetadata(method, path, handlerFile) {
+// Dynamic Metadata Helper to generate clean details based on paths, methods, and real backend data
+function getEndpointMetadata(method, path, handlerFile, selectedEndpoint) {
     const cleanPath = path.toLowerCase();
     const cleanMethod = method.toUpperCase();
-    const resource = cleanPath.split('/').filter(Boolean).pop() || 'resource';
     
-    // 1. Description
+    // Parse resource name dynamically
+    const segments = cleanPath.split('/').filter(Boolean);
+    let resource = 'resource';
+    if (segments.length > 0) {
+        // If last segment is a parameter (e.g. :id or {id}), get the one before it
+        const last = segments[segments.length - 1];
+        if ((last.startsWith(':') || last.startsWith('{') || last.startsWith('<')) && segments.length > 1) {
+            resource = segments[segments.length - 2];
+        } else {
+            resource = last;
+        }
+    }
+    
+    // Clean up resource name
+    resource = resource.replace(/[^a-zA-Z0-9_-]/g, '');
+
+    // 1. Dynamic Description
     let description = '';
-    if (cleanPath.includes('auth/login')) {
-        description = 'Authenticate user credentials and generate JWT access tokens';
-    } else if (cleanPath.includes('auth/register')) {
-        description = 'Register a new developer account and initialize settings';
-    } else if (cleanPath.includes('auth/logout')) {
-        description = 'Revoke active authentication token and destroy session';
-    } else if (cleanPath.includes('users') && cleanPath.includes(':id')) {
-        if (cleanMethod === 'GET') description = 'Retrieve detailed profile parameters for a specific user ID';
-        else if (cleanMethod === 'PUT') description = 'Update editable profile parameters, security, and credentials';
-        else if (cleanMethod === 'DELETE') description = 'Permanently purge user account and cascade delete files';
-    } else if (cleanPath.includes('users')) {
-        description = 'Query active users matching filter parameters with pagination';
-    } else if (cleanPath.includes('repos') && cleanPath.includes(':id')) {
-        if (cleanMethod === 'GET') description = 'Retrieve complete static analysis results for a repository ID';
-        else if (cleanMethod === 'PUT') description = 'Trigger full re-indexing and update repository analysis data';
-        else if (cleanMethod === 'DELETE') description = 'Remove analyzed repository and purge all cached AST node data';
-    } else if (cleanPath.includes('repos') || cleanPath.includes('analyze')) {
-        if (cleanMethod === 'POST') description = 'Accept repository URL and start background worker AST code parsing';
-        else description = 'Query analyzed repositories index with pagination';
+    if (cleanMethod === 'GET') {
+        description = cleanPath.includes(':') || cleanPath.includes('{')
+            ? `Retrieve specific ${resource} instance by ID`
+            : `Fetch and query lists of ${resource} records`;
+    } else if (cleanMethod === 'POST') {
+        description = `Submit payload to create and register a new ${resource} entity`;
+    } else if (cleanMethod === 'PUT' || cleanMethod === 'PATCH') {
+        description = `Update parameters of an existing ${resource} resource`;
+    } else if (cleanMethod === 'DELETE') {
+        description = `Permanently delete and purge the designated ${resource} record`;
     } else {
-        // Generic fallback
-        if (cleanMethod === 'GET') description = `Fetch and list parsed details for current ${resource} records`;
-        else if (cleanMethod === 'POST') description = `Submit payload to create and register a new ${resource} entity`;
-        else if (cleanMethod === 'PUT') description = `Update parameters of an existing ${resource} resource`;
-        else if (cleanMethod === 'DELETE') description = `Delete and purge the designated ${resource} record`;
-        else description = `API endpoint handler for ${cleanMethod} requests to /${resource}`;
+        description = `API endpoint handler for ${cleanMethod} requests to /${resource}`;
     }
 
-    // 2. Controller & Handler Names
-    let fileName = handlerFile ? handlerFile.split('/').pop() : '';
-    let baseName = fileName.replace('.routes.js', '').replace('.routes.ts', '').replace('.js', '').replace('.py', '');
-    let controller = handlerFile 
-        ? handlerFile.replace('routes/', 'controllers/').replace('.routes.js', '.controller.js').replace('.routes.ts', '.controller.ts')
-        : `src/controllers/${baseName || 'api'}.controller.js`;
-    
-    let handler = '';
-    if (cleanPath.includes('login')) handler = 'loginUser';
-    else if (cleanPath.includes('register')) handler = 'registerUser';
-    else if (cleanPath.includes('users') && cleanPath.includes(':id')) {
-        if (cleanMethod === 'GET') handler = 'getUserById';
-        else if (cleanMethod === 'PUT') handler = 'updateUser';
-        else if (cleanMethod === 'DELETE') handler = 'deleteUser';
-    } else if (cleanPath.includes('users')) {
-        handler = 'listUsers';
-    } else if (cleanPath.includes('repos') || cleanPath.includes('analyze')) {
-        if (cleanMethod === 'POST') handler = 'analyzeRepository';
-        else handler = 'listRepositories';
-    } else {
-        const camelResource = resource.charAt(0).toUpperCase() + resource.slice(1);
-        if (cleanMethod === 'GET') handler = cleanPath.includes(':id') ? `get${camelResource}` : `list${camelResource}s`;
-        else if (cleanMethod === 'POST') handler = `create${camelResource}`;
-        else if (cleanMethod === 'PUT') handler = `update${camelResource}`;
-        else if (cleanMethod === 'DELETE') handler = `delete${camelResource}`;
-        else handler = 'handleRequest';
-    }
+    // 2. Controller & Handler
+    const controller = selectedEndpoint?.handlerFile || handlerFile || 'N/A';
+    const handler = selectedEndpoint?.handlerFunction || 'N/A';
 
     // 3. Middlewares
-    let middleware = [];
-    if (cleanPath.includes('auth/login') || cleanPath.includes('auth/register')) {
-        middleware = ['rateLimiter', 'validateRequestBody'];
-    } else if (cleanPath.includes('users') || cleanPath.includes('repos') || cleanPath.includes('analyze')) {
-        middleware = ['authenticateToken', 'verifyAccessRole'];
-    } else {
-        middleware = ['express.json()'];
-    }
+    const middleware = selectedEndpoint?.middleware || [];
 
     // 4. Tags
     let tags = [];
-    if (cleanPath.includes('auth')) tags = ['Auth', 'System'];
-    else if (cleanPath.includes('users')) tags = ['Users', 'Management'];
-    else if (cleanPath.includes('repos') || cleanPath.includes('analyze')) tags = ['Repositories', 'Parser'];
-    else tags = [resource.charAt(0).toUpperCase() + resource.slice(1)];
-
-    // 5. Request payload examples
-    let requestExample = null;
-    if (cleanMethod === 'POST' || cleanMethod === 'PUT') {
-        if (cleanPath.includes('login')) {
-            requestExample = { email: 'user@example.com', password: '••••••••' };
-        } else if (cleanPath.includes('register')) {
-            requestExample = { username: 'cipher_dev', email: 'user@example.com', password: '••••••••', fullName: 'Cipher Master' };
-        } else if (cleanPath.includes('repos') || cleanPath.includes('analyze')) {
-            requestExample = { repositoryUrl: 'https://github.com/facebook/react', branch: 'main', depth: 3 };
-        } else {
-            requestExample = { name: `Sample ${resource}`, status: 'active', properties: { category: 'developer-tools' } };
-        }
-    }
-
-    // 6. Response payload examples (200 status)
-    let responseExample = { success: true };
-    if (cleanPath.includes('login')) {
-        responseExample = {
-            success: true,
-            token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ1c3JfOXgxMmE4IiwiZXhwIjoxNzQ4NTMyODAwfQ.xyz-signature-content...',
-            user: { id: 'usr_9x12a8', email: 'user@example.com', role: 'developer' }
-        };
-    } else if (cleanPath.includes('register')) {
-        responseExample = {
-            success: true,
-            message: 'User registered successfully',
-            userId: 'usr_9x12a8'
-        };
-    } else if (cleanPath.includes('users') && cleanPath.includes(':id')) {
-        responseExample = {
-            success: true,
-            user: {
-                id: 'usr_9x12a8',
-                username: 'cipher_dev',
-                email: 'user@example.com',
-                profile: { fullName: 'Cipher Master', bio: 'AST Parsing Engineer' },
-                createdAt: '2026-05-18T10:20:00.000Z'
-            }
-        };
-    } else if (cleanPath.includes('repos') || cleanPath.includes('analyze')) {
-        responseExample = {
-            success: true,
-            repository: { name: 'react', owner: 'facebook', isAnalyzed: true },
-            analysis: { filesCount: 148, functionsCount: 1042, endpointsCount: 18 }
-        };
+    if (segments.length > 0) {
+        const first = segments[0] === 'api' && segments.length > 1 ? segments[1] : segments[0];
+        tags = [first.charAt(0).toUpperCase() + first.slice(1)];
     } else {
-        responseExample = {
-            success: true,
-            data: cleanPath.includes(':id') 
-                ? { id: 'id_sample_99', name: `Sample ${resource}`, status: 'active' }
-                : [{ id: 'id_sample_99', name: `Sample ${resource}`, status: 'active' }]
+        tags = ['API'];
+    }
+
+    // 5. Request example
+    let requestExample = null;
+    if (cleanMethod === 'POST' || cleanMethod === 'PUT' || cleanMethod === 'PATCH') {
+        requestExample = {
+            [resource]: `new_${resource}_data`,
+            status: "active",
+            payload: {}
         };
     }
+
+    // 6. Response example
+    const responseExample = {
+        success: true,
+        message: `Request for ${cleanMethod} ${path} processed successfully`,
+        data: cleanMethod === 'GET' && !(cleanPath.includes(':') || cleanPath.includes('{')) 
+            ? [{ id: "1", name: `Sample ${resource}` }]
+            : { id: "1", name: `Sample ${resource}` }
+    };
 
     return {
         description,
@@ -164,7 +101,7 @@ function getEndpointMetadata(method, path, handlerFile) {
         handler,
         middleware,
         tags,
-        lastModified: 'May 18, 2026 4:21 PM',
+        lastModified: 'Static Analysis',
         requestExample,
         responseExample
     };

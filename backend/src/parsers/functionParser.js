@@ -1,25 +1,13 @@
 /**
- * Function Parser - Tree-Sitter AST Based
- * Extracts function declarations from source code using AST parsing
- * For production, use with tree-sitter and language grammars
- * Currently provides simplified implementation for immediate functionality
+ * Function Parser - Accurate static analysis of function declarations
+ * Handles JS/TS, Python, Java.
+ * Also extracts inline route handler bodies (for traceability of anonymous callbacks).
  */
 
 const FunctionNode = require('../models/FunctionNode');
 
 class FunctionParser {
-  static parser = null;
-  static parserInitialized = false;
-
-  static async initializeParser() {
-    // Tree-sitter initialization
-    // In production: await Parser.init(); with proper WASM setup
-    this.parserInitialized = true;
-  }
-
   static async parseFunctions(fileContent, language, filename) {
-    await this.initializeParser();
-
     if (language === 'javascript' || language === 'typescript') {
       return this.parseJavaScript(fileContent, filename);
     } else if (language === 'python') {
@@ -27,190 +15,198 @@ class FunctionParser {
     } else if (language === 'java') {
       return this.parseJava(fileContent, filename);
     }
-
     return [];
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // JavaScript / TypeScript
+  // ─────────────────────────────────────────────────────────────────────────
   static parseJavaScript(content, filename) {
     const functions = [];
     const lines = content.split('\n');
-    const functionNames = new Set(); // Track found functions to avoid duplicates
+    const seen = new Set();
 
-    // Parse function declarations: function name() {}
-    const funcDeclRegex = /(?:async\s+)?function\s+(\w+)\s*\(/g;
-    let match;
-    while ((match = funcDeclRegex.exec(content)) !== null) {
-      const lineNum = content.substring(0, match.index).split('\n').length;
-      const endLine = this.findFunctionEnd(lines, lineNum - 1);
-      const funcName = match[1];
-      if (!functionNames.has(`${funcName}@${lineNum}`)) {
-        functionNames.add(`${funcName}@${lineNum}`);
-        functions.push(new FunctionNode({
-          name: funcName,
-          file: filename,
-          line: lineNum,
-          startLine: lineNum,
-          endLine: endLine,
-          type: 'function'
-        }));
-      }
+    const add = (name, lineNum, endLine, type, params, isAsync, isExported, body) => {
+      const key = `${name}@${lineNum}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      functions.push(new FunctionNode({
+        name, file: filename, line: lineNum,
+        startLine: lineNum, endLine,
+        type, parameters: params,
+        isAsync: !!isAsync,
+        scope: isExported ? 'exported' : 'private',
+        bodyText: body || ''
+      }));
+    };
+
+    // 1. Named function declarations: [export] [default] [async] function name(params) { }
+    const funcDeclRe = /(export\s+(?:default\s+)?)?(async\s+)?function\s*\*?\s+(\w+)\s*\(([^)]*)\)/g;
+    let m;
+    while ((m = funcDeclRe.exec(content)) !== null) {
+      const ln = this._lineAt(content, m.index);
+      const end = this._findBlockEnd(lines, ln - 1);
+      add(m[3], ln, end, 'function', this._params(m[4]), m[2], !!m[1],
+          lines.slice(ln - 1, end).join('\n'));
     }
 
-    // Parse named arrow functions: const name = () =>
-    const arrowRegex = /const\s+(\w+)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>/g;
-    while ((match = arrowRegex.exec(content)) !== null) {
-      const lineNum = content.substring(0, match.index).split('\n').length;
-      const endLine = this.findFunctionEnd(lines, lineNum - 1);
-      const funcName = match[1];
-      if (!functionNames.has(`${funcName}@${lineNum}`)) {
-        functionNames.add(`${funcName}@${lineNum}`);
-        functions.push(new FunctionNode({
-          name: funcName,
-          file: filename,
-          line: lineNum,
-          startLine: lineNum,
-          endLine: endLine,
-          type: 'arrow'
-        }));
-      }
+    // 2. Arrow / const functions: [export] const name = [async] ([params]) => { }
+    const arrowRe = /(export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(async\s*)?\(([^)]*)\)\s*=>/g;
+    while ((m = arrowRe.exec(content)) !== null) {
+      const ln = this._lineAt(content, m.index);
+      const end = this._findBlockEnd(lines, ln - 1);
+      add(m[2], ln, end, 'arrow', this._params(m[4]), m[3], !!m[1],
+          lines.slice(ln - 1, end).join('\n'));
     }
 
-    // Parse class methods: method() {} or async method() {}
-    const methodRegex = /^\s*(?:async\s+)?(\w+)\s*\([^)]*\)\s*{/gm;
-    while ((match = methodRegex.exec(content)) !== null) {
-      if (!match[1].match(/^(if|for|while|switch|function|class|constructor)/i)) {
-        const lineNum = content.substring(0, match.index).split('\n').length;
-        const endLine = this.findFunctionEnd(lines, lineNum - 1);
-        const funcName = match[1];
-        if (!functionNames.has(`${funcName}@${lineNum}`)) {
-          functionNames.add(`${funcName}@${lineNum}`);
-          functions.push(new FunctionNode({
-            name: funcName,
-            file: filename,
-            line: lineNum,
-            startLine: lineNum,
-            endLine: endLine,
-            type: 'method'
-          }));
-        }
-      }
+    // 3. Arrow without parens: const name = async x => { }
+    const arrowNoParenRe = /(export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(async\s+)?(\w+)\s*=>/g;
+    while ((m = arrowNoParenRe.exec(content)) !== null) {
+      if (['if', 'for', 'while', 'switch', 'return', 'new'].includes(m[4])) continue;
+      const ln = this._lineAt(content, m.index);
+      const end = this._findBlockEnd(lines, ln - 1);
+      add(m[2], ln, end, 'arrow', [m[4]], m[3], !!m[1],
+          lines.slice(ln - 1, end).join('\n'));
     }
 
-    // Parse route handlers and callbacks: app.get("/path", async (req, res) => {})
-    // Matches: app.METHOD(..., async (req, res) => {}) or app.METHOD(..., (req, res) => {})
-    const routeRegex = /\.(?:get|post|put|delete|patch|head|options|use)\s*\(\s*['"`]?[^'"`]*['"`]?\s*,\s*(?:async\s+)?\(([\w\s,]*)\)\s*=>/gm;
-    let routeNum = 0;
-    while ((match = routeRegex.exec(content)) !== null) {
-      const lineNum = content.substring(0, match.index).split('\n').length;
-      const endLine = this.findFunctionEnd(lines, lineNum - 1);
-      const params = match[1].trim();
-      const funcName = `handler_${routeNum++}`; // Generate name for anonymous callback
-      if (!functionNames.has(`${funcName}@${lineNum}`)) {
-        functionNames.add(`${funcName}@${lineNum}`);
-        functions.push(new FunctionNode({
-          name: funcName,
-          file: filename,
-          line: lineNum,
-          startLine: lineNum,
-          endLine: endLine,
-          type: 'arrow',
-          parameters: params.split(',').map(p => p.trim()).filter(p => p)
-        }));
-      }
+    // 4. Class / object methods: [async] name(params) { }
+    const methodRe = /^[ \t]*(static\s+)?(async\s+)?(?!if|for|while|switch|function|class|return|const|let|var|throw|try|catch|new\b)([a-zA-Z_$][\w$]*)\s*\(([^)]*)\)\s*\{/gm;
+    while ((m = methodRe.exec(content)) !== null) {
+      const name = m[3];
+      if (['constructor', 'get', 'set', 'super', 'describe', 'it', 'test', 'expect', 'beforeEach', 'afterEach'].includes(name)) continue;
+      const ln = this._lineAt(content, m.index);
+      const end = this._findBlockEnd(lines, ln - 1);
+      add(name, ln, end, 'method', this._params(m[4]), m[2], false,
+          lines.slice(ln - 1, end).join('\n'));
+    }
+
+    // 5. module.exports.name = function(){}  or  module.exports = { name: function(){} }
+    const exportsRe = /module\.exports(?:\.(\w+))?\s*=\s*(?:(async)\s+)?function\s*(\w*)\s*\(([^)]*)\)/g;
+    while ((m = exportsRe.exec(content)) !== null) {
+      const name = m[1] || m[3] || 'exports_fn';
+      const ln = this._lineAt(content, m.index);
+      const end = this._findBlockEnd(lines, ln - 1);
+      add(name, ln, end, 'function', this._params(m[4]), !!m[2], true,
+          lines.slice(ln - 1, end).join('\n'));
+    }
+
+    // 6. Inline route handlers — critical for traceability!
+    //    Captures the body of: app.get('/path', async (req, res) => { ... })
+    //    Named as: __route_handler_LINE to link with EndpointParser
+    const routeRe = /(?:app|router)\.(get|post|put|delete|patch|head|options|use)\s*\(\s*['"`]([^'"`]+)['"`]\s*,\s*(?:(?!(?:app|router)\.)[\s\S])*?(?:(async\s*)?\(([^)]*)\)\s*=>|(?:async\s+)?function\s*\(([^)]*)\))\s*\{/g;
+    while ((m = routeRe.exec(content)) !== null) {
+      const ln = this._lineAt(content, m.index);
+      const end = this._findBlockEnd(lines, ln - 1);
+      const routeName = `__route_${m[1]}_${ln}`;
+      const isAsync = !!(m[3] || m[0].includes('async'));
+      const paramsRaw = m[4] || m[5] || '';
+      add(routeName, ln, end, 'route_handler', this._params(paramsRaw), isAsync, false,
+          lines.slice(ln - 1, end).join('\n'));
     }
 
     return functions;
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Python
+  // ─────────────────────────────────────────────────────────────────────────
   static parsePython(content, filename) {
     const functions = [];
     const lines = content.split('\n');
+    const seen = new Set();
 
-    // Parse function definitions
-    const funcRegex = /^(?:async\s+)?def\s+(\w+)\s*\(/gm;
-    let match;
-    while ((match = funcRegex.exec(content)) !== null) {
-      const lineNum = content.substring(0, match.index).split('\n').length;
-      const endLine = this.findPythonFunctionEnd(lines, lineNum - 1);
+    const funcRe = /^([ \t]*)(async\s+)?def\s+(\w+)\s*\(([^)]*)\)\s*(?:->[^:]+)?:/gm;
+    let m;
+    while ((m = funcRe.exec(content)) !== null) {
+      const name = m[3];
+      const key = `${name}@${m.index}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const indent = m[1].length;
+      const ln = this._lineAt(content, m.index);
+      const end = this._findPythonEnd(lines, ln - 1, indent);
+      const isExported = indent === 0 && !name.startsWith('_');
       functions.push(new FunctionNode({
-        name: match[1],
-        file: filename,
-        line: lineNum,
-        startLine: lineNum,
-        endLine: endLine,
-        type: 'function'
+        name, file: filename, line: ln, startLine: ln, endLine: end,
+        type: 'function', parameters: this._params(m[4]),
+        isAsync: !!m[2], scope: isExported ? 'exported' : 'private',
+        bodyText: lines.slice(ln - 1, end).join('\n')
       }));
     }
-
     return functions;
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Java
+  // ─────────────────────────────────────────────────────────────────────────
   static parseJava(content, filename) {
     const functions = [];
     const lines = content.split('\n');
+    const seen = new Set();
 
-    // Parse method declarations
-    const methodRegex = /(?:public|private|protected)?\s+(?:static\s+)?(?:async\s+)?(\w+[\[\]]*)\s+(\w+)\s*\([^)]*\)\s*(?:throws\s+[^{]+)?\{/g;
-    let match;
-    while ((match = methodRegex.exec(content)) !== null) {
-      const lineNum = content.substring(0, match.index).split('\n').length;
-      const endLine = this.findFunctionEnd(lines, lineNum - 1);
+    const methodRe = /(?:(?:public|private|protected|static|final|abstract|synchronized|native|\s)+)\s+([\w<>\[\],\s]+?)\s+(\w+)\s*\(([^)]*)\)\s*(?:throws\s+[\w,\s]+)?\s*\{/g;
+    let m;
+    while ((m = methodRe.exec(content)) !== null) {
+      const name = m[2];
+      if (['if', 'for', 'while', 'switch', 'catch', 'try', 'else'].includes(name)) continue;
+      const key = `${name}@${m.index}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const ln = this._lineAt(content, m.index);
+      const end = this._findBlockEnd(lines, ln - 1);
       functions.push(new FunctionNode({
-        name: match[2],
-        file: filename,
-        line: lineNum,
-        startLine: lineNum,
-        endLine: endLine,
-        type: 'method',
-        returnType: match[1]
+        name, file: filename, line: ln, startLine: ln, endLine: end,
+        type: 'method', parameters: this._params(m[3]),
+        returnType: m[1].trim(),
+        scope: m[0].includes('public') ? 'exported' : 'private',
+        bodyText: lines.slice(ln - 1, end).join('\n')
       }));
     }
-
     return functions;
   }
 
-  static findFunctionEnd(lines, startLine) {
-    let braceCount = 0;
-    let foundOpeningBrace = false;
-
-    for (let i = startLine; i < lines.length; i++) {
-      const line = lines[i];
-      
-      for (let j = 0; j < line.length; j++) {
-        if (line[j] === '{') {
-          foundOpeningBrace = true;
-          braceCount++;
-        } else if (line[j] === '}') {
-          braceCount--;
-          if (foundOpeningBrace && braceCount === 0) {
-            return i + 1; // Return 1-indexed line number
-          }
-        }
-      }
-    }
-
-    return startLine + 1; // Fallback
+  // ─────────────────────────────────────────────────────────────────────────
+  // Helpers
+  // ─────────────────────────────────────────────────────────────────────────
+  static _lineAt(content, idx) {
+    return content.substring(0, idx).split('\n').length;
   }
 
-  static findPythonFunctionEnd(lines, startLine) {
-    if (startLine >= lines.length) return startLine + 1;
+  static _params(raw) {
+    if (!raw || !raw.trim()) return [];
+    return raw.split(',')
+      .map(p => {
+        // Strip type annotations: name: Type, Type name, etc.
+        p = p.trim()
+          .replace(/:\s*[\w<>\[\]|&?]+/g, '') // TS type annotations
+          .replace(/=.+$/, '')                  // default values
+          .split(/\s+/).pop().trim();
+        return p;
+      })
+      .filter(p => p && !/^(\.\.\.)?$/.test(p) && !/^\d/.test(p));
+  }
 
-    const baseIndentation = lines[startLine].match(/^\s*/)[0].length;
-
-    for (let i = startLine + 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      
-      // Skip empty lines and comments
-      if (line === '' || line.startsWith('#')) continue;
-
-      // Check indentation
-      const indent = lines[i].match(/^\s*/)[0].length;
-      if (indent <= baseIndentation && line.length > 0) {
-        return i; // Return 1-indexed line number
+  static _findBlockEnd(lines, startLine) {
+    let braces = 0, found = false;
+    for (let i = startLine; i < lines.length; i++) {
+      // Skip strings and comments roughly
+      const line = lines[i].replace(/"[^"]*"|'[^']*'|`[^`]*`/g, '""')
+                            .replace(/\/\/.*$/, '');
+      for (const ch of line) {
+        if (ch === '{') { found = true; braces++; }
+        else if (ch === '}') { braces--; if (found && braces === 0) return i + 1; }
       }
     }
+    return Math.min(startLine + 100, lines.length);
+  }
 
-    return lines.length; // End of file
+  static _findPythonEnd(lines, startLine, baseIndent) {
+    for (let i = startLine + 1; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.trim() === '' || line.trim().startsWith('#')) continue;
+      if (line.match(/^[ \t]*/)[0].length <= baseIndent) return i;
+    }
+    return lines.length;
   }
 }
 
