@@ -161,3 +161,7 @@
 .search-bar button:active {
   transform: translateY(0);
 }
+
+search-bar button:active {
+  transform: translateY(0);
+}

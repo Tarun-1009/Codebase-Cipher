@@ -27,27 +27,27 @@
 /* Folder: blue left accent */
 .tree-node-folder {
     border-left: 3px solid var(--accent-secondary);
-    background: rgba(6, 182, 212, 0.08);
+    background: rgba(255, 255, 255, 0.88) !important;
 }
 
 .tree-node-folder:hover {
-    border-left-color: #22d3ee;
-    background: rgba(6, 182, 212, 0.15);
-    border-color: rgba(6, 182, 212, 0.25);
-    box-shadow: 0 4px 16px rgba(6, 182, 212, 0.15);
+    border-left-color: var(--accent-secondary);
+    background: #ffffff !important;
+    border-color: rgba(6, 182, 212, 0.4);
+    box-shadow: 0 4px 16px rgba(31, 41, 124, 0.08);
 }
 
 /* File: gray left accent */
 .tree-node-file {
     border-left: 3px solid var(--accent-primary);
-    background: rgba(99, 102, 241, 0.06);
+    background: rgba(255, 255, 255, 0.88) !important;
 }
 
 .tree-node-file:hover {
-    border-left-color: #818cf8;
-    background: rgba(99, 102, 241, 0.12);
-    border-color: rgba(99, 102, 241, 0.25);
-    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.15);
+    border-left-color: var(--accent-primary);
+    background: #ffffff !important;
+    border-color: rgba(99, 102, 241, 0.4);
+    box-shadow: 0 4px 16px rgba(31, 41, 124, 0.08);
 }
 
 /* Node icon */
@@ -126,7 +126,7 @@
     border: 1px solid var(--border-color) !important;
     border-radius: 8px !important;
     overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+    box-shadow: 0 4px 16px rgba(31, 41, 124, 0.05) !important;
 }
 
 .react-flow__controls-button {
@@ -146,11 +146,13 @@
 }
 
 .react-flow__edge-path {
-    stroke: var(--border-hover) !important;
-    stroke-width: 1.5px !important;
+    stroke: rgba(99, 102, 241, 0.65) !important; /* Premium Indigo connector lines */
+    stroke-width: 2.5px !important;
+    filter: drop-shadow(0 1px 2px rgba(99, 102, 241, 0.15));
 }
 
 .react-flow__edge.selected .react-flow__edge-path {
     stroke: var(--accent-primary) !important;
-    stroke-width: 2px !important;
+    stroke-width: 3.5px !important;
+    filter: drop-shadow(0 2px 6px rgba(99, 102, 241, 0.4));
 }

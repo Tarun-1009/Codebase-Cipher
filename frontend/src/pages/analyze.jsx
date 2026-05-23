@@ -5,18 +5,19 @@ import Summary from "../components/Summary/Summary";
 import DependencyGraph from "../components/Canvas/DependencyGraph";
 import TraceabilityGraph from "../components/Canvas/TraceabilityGraph";
 import ApiCatalog from "../components/ApiCatalog/ApiCatalog";
+import AnimatedBackground from "../components/Canvas/AnimatedBackground";
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import flattenTree from "../utils/treeFlattener";
-import { 
-    FaChartBar, 
-    FaSitemap, 
-    FaProjectDiagram, 
-    FaExchangeAlt, 
-    FaRoute, 
-    FaInfoCircle, 
-    FaCode, 
-    FaCube, 
+import {
+    FaChartBar,
+    FaSitemap,
+    FaProjectDiagram,
+    FaExchangeAlt,
+    FaRoute,
+    FaInfoCircle,
+    FaCode,
+    FaCube,
     FaFolderOpen,
     FaRegFileCode,
     FaEye,
@@ -27,24 +28,24 @@ import "./analyze.css";
 function Analyze() {
     const { username, repo } = useParams();
     const navigate = useNavigate();
-    
+
     const [repoData, setRepoData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [selectedNode, setSelectedNode] = useState(null);
-    
+
     // Branch Selection state
     const [branches, setBranches] = useState([]);
     const [selectedBranch, setSelectedBranch] = useState("");
-    
+
     // Left sidebar navigation tab selection
     const [activeTab, setActiveTab] = useState("dashboard"); // 'dashboard', 'tree', 'dependencies', 'traceability', 'api'
     const [showExplorer, setShowExplorer] = useState(true);
     const [showSummary, setShowSummary] = useState(true);
-    
+
     // Top Bar Address input
     const [repoUrl, setRepoUrl] = useState(`https://github.com/${username}/${repo}`);
-    
+
     // API Search filter
     const [apiSearch, setApiSearch] = useState("");
 
@@ -53,7 +54,7 @@ function Analyze() {
         if (!username || !repo) return;
         setBranches([]);
         setSelectedBranch("");
-        
+
         fetch(`http://localhost:5000/branches/${username}/${repo}`)
             .then(res => {
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -63,10 +64,10 @@ function Analyze() {
                 if (Array.isArray(data) && data.length > 0) {
                     setBranches(data);
                     // Determine initial branch choice
-                    const initialBr = data.includes("main") 
-                        ? "main" 
-                        : data.includes("master") 
-                            ? "master" 
+                    const initialBr = data.includes("main")
+                        ? "main"
+                        : data.includes("master")
+                            ? "master"
                             : data[0];
                     setSelectedBranch(initialBr);
                 } else {
@@ -84,16 +85,16 @@ function Analyze() {
     // Fetch repository data
     useEffect(() => {
         if (!username || !repo) return;
-        
+
         setRepoData(null);
         setError(null);
         setLoading(true);
         setSelectedNode(null);
         setActiveTab("dashboard");
         setRepoUrl(`https://github.com/${username}/${repo}`);
-        
+
         const branchQuery = selectedBranch ? `?branch=${selectedBranch}` : "";
-        
+
         fetch(`http://localhost:5000/analyze/${username}/${repo}${branchQuery}`)
             .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
             .then(data => setRepoData(data))
@@ -119,9 +120,9 @@ function Analyze() {
         // Normalize paths by removing leading or trailing slashes
         const normNodePath = node.path?.replace(/^\/|\/$/g, "");
         const normPath = path?.replace(/^\/|\/$/g, "");
-        
+
         if (normNodePath === normPath || node.id === path) return node;
-        
+
         if (node.children) {
             for (let child of node.children) {
                 const found = findNodeInTreeByPath(child, path);
@@ -134,7 +135,7 @@ function Analyze() {
     // Shared node click handlers across views
     const handleNodeSelection = (node) => {
         if (!node) return;
-        
+
         // If node has details inside the tree, let's look for it
         if (repoData && repoData.tree) {
             const fileNode = findNodeInTreeByPath(repoData.tree, node.path || node.name);
@@ -372,53 +373,54 @@ function Analyze() {
 
     return (
         <div className="analyze-root">
+            <AnimatedBackground />
             {/* Address input & Export actions bar */}
-            <Header 
-                repoUrl={repoUrl} 
-                setRepoUrl={setRepoUrl} 
-                onAnalyze={handleAnalyze} 
-                onExport={handleExport} 
+            <Header
+                repoUrl={repoUrl}
+                setRepoUrl={setRepoUrl}
+                onAnalyze={handleAnalyze}
+                onExport={handleExport}
                 branches={branches}
                 selectedBranch={selectedBranch}
                 setSelectedBranch={setSelectedBranch}
             />
-            
+
             <div className="main-wrapper">
                 {/* Left Sidebar Layout */}
                 <div className="sidebar-panel">
                     {/* Navigation Tab Selections */}
                     <div className="navigation-group">
                         <span className="panel-label">Intelligence Navigation</span>
-                        
-                        <button 
+
+                        <button
                             className={`nav-menu-btn ${activeTab === "dashboard" ? "active" : ""}`}
                             onClick={() => setActiveTab("dashboard")}
                         >
                             <FaChartBar className="menu-icon" /> Dashboard
                         </button>
-                        
-                        <button 
+
+                        <button
                             className={`nav-menu-btn ${activeTab === "tree" ? "active" : ""}`}
                             onClick={() => setActiveTab("tree")}
                         >
                             <FaSitemap className="menu-icon" /> Tree Structure
                         </button>
-                        
-                        <button 
+
+                        <button
                             className={`nav-menu-btn ${activeTab === "dependencies" ? "active" : ""}`}
                             onClick={() => setActiveTab("dependencies")}
                         >
                             <FaProjectDiagram className="menu-icon" /> Dependency Graph
                         </button>
-                        
-                        <button 
+
+                        <button
                             className={`nav-menu-btn ${activeTab === "traceability" ? "active" : ""}`}
                             onClick={() => setActiveTab("traceability")}
                         >
                             <FaExchangeAlt className="menu-icon" /> Traceability Engine
                         </button>
-                        
-                        <button 
+
+                        <button
                             className={`nav-menu-btn ${activeTab === "api" ? "active" : ""}`}
                             onClick={() => setActiveTab("api")}
                         >
@@ -430,7 +432,7 @@ function Analyze() {
                     <div className={`explorer-group ${showExplorer ? 'open' : 'collapsed'}`}>
                         <div className="explorer-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingRight: '4px' }}>
                             <span className="panel-label">Directory Explorer</span>
-                            <button 
+                            <button
                                 onClick={() => setShowExplorer(!showExplorer)}
                                 className="explorer-toggle-btn"
                                 style={{
@@ -453,9 +455,9 @@ function Analyze() {
                         </div>
                         {showExplorer && (
                             <div className="sidebar-explorer-container">
-                                <FileExplorer 
-                                    nodes={repoData.tree ? [repoData.tree] : []} 
-                                    onNodeClick={handleNodeSelection} 
+                                <FileExplorer
+                                    nodes={repoData.tree ? [repoData.tree] : []}
+                                    onNodeClick={handleNodeSelection}
                                 />
                             </div>
                         )}
@@ -473,31 +475,31 @@ function Analyze() {
                         <div className="dashboard-view-container">
                             <h2 className="dashboard-title">Repository Intelligence Overview</h2>
                             <p className="dashboard-subtitle">Parsed details for <code>{username}/{repo}</code></p>
-                            
+
                             {/* Summary Metrics Cards */}
                             <div className="dashboard-stats-grid">
-                                <div className="stat-glow-card">
+                                <div className="stat-glow-card blue-card">
                                     <div className="card-header">Total Files</div>
                                     <div className="card-value blue">{repoData?.metadata?.totalFiles || totalFiles || 0}</div>
                                     <div className="card-footer">source code files</div>
                                 </div>
-                                <div className="stat-glow-card">
+                                <div className="stat-glow-card purple-card">
                                     <div className="card-header">Functions Parsed</div>
                                     <div className="card-value purple">{repoData?.metadata?.totalFunctions || 0}</div>
                                     <div className="card-footer">declarations found</div>
                                 </div>
-                                <div className="stat-glow-card">
+                                <div className="stat-glow-card blue-green-card">
                                     <div className="card-header">Package Imports</div>
-                                    <div className="card-value pink">{repoData?.metadata?.totalImports || 0}</div>
+                                    <div className="card-value blue-green">{repoData?.metadata?.totalImports || 0}</div>
                                     <div className="card-footer">imported packages</div>
                                 </div>
-                                <div className="stat-glow-card">
+                                <div className="stat-glow-card green-card">
                                     <div className="card-header">API Routes</div>
                                     <div className="card-value green">{repoData?.metadata?.totalEndpoints || 0}</div>
                                     <div className="card-footer">endpoints detected</div>
                                 </div>
                             </div>
-                            
+
                             {/* Language Details */}
                             <div className="dashboard-details-row">
                                 <div className="dashboard-sub-card language-breakdown">
@@ -524,7 +526,7 @@ function Analyze() {
                                         )}
                                     </div>
                                 </div>
-                                
+
                                 <div className="dashboard-sub-card frameworks-card">
                                     <h3>Detected Ecosystem</h3>
                                     <div className="ecosystem-body">
@@ -545,23 +547,23 @@ function Analyze() {
                             </div>
                         </div>
                     )}
-                    
+
                     {activeTab === "tree" && (
-                        <Tree 
-                            flatNodes={flatNodes} 
-                            flatEdges={flatEdges} 
-                            onNodeClick={handleNodeSelection} 
-                        />
-                    )}
-                    
-                    {activeTab === "dependencies" && (
-                        <DependencyGraph 
-                            repoData={repoData.tree} 
-                            repoName={repo} 
+                        <Tree
+                            flatNodes={flatNodes}
+                            flatEdges={flatEdges}
                             onNodeClick={handleNodeSelection}
                         />
                     )}
-                    
+
+                    {activeTab === "dependencies" && (
+                        <DependencyGraph
+                            repoData={repoData.tree}
+                            repoName={repo}
+                            onNodeClick={handleNodeSelection}
+                        />
+                    )}
+
                     {activeTab === "traceability" && (
                         <TraceabilityGraph
                             traceability={repoData?.traceability || null}
@@ -569,17 +571,17 @@ function Analyze() {
                             onNodeClick={handleTraceabilityClick}
                         />
                     )}
-                    
+
                     {activeTab === "api" && (
-                        <ApiCatalog 
-                            apiEndpoints={repoData?.apiEndpoints || []} 
-                            repoTree={repoData?.tree || {}} 
+                        <ApiCatalog
+                            apiEndpoints={repoData?.apiEndpoints || []}
+                            repoTree={repoData?.tree || {}}
                         />
                     )}
-                    
+
                     {/* Floating Workspace Toggle */}
                     {activeTab !== "api" && activeTab !== "traceability" && (
-                        <button 
+                        <button
                             onClick={() => setShowSummary(!showSummary)}
                             className="floating-summary-toggle-btn"
                             title={showSummary ? "Hide Analysis Workspace" : "Show Analysis Workspace"}

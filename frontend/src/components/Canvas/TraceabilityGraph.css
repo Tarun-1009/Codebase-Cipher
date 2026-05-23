@@ -417,7 +417,7 @@
     position: relative;
     width: 40px;
     height: 2px;
-    background: var(--border-color);
+    background: rgba(99, 102, 241, 0.55) !important;
     flex-shrink: 0;
 }
 
@@ -430,15 +430,15 @@
     height: 0;
     border-top: 4px solid transparent;
     border-bottom: 4px solid transparent;
-    border-left: 6px solid var(--border-color);
+    border-left: 6px solid rgba(99, 102, 241, 0.55) !important;
 }
 
 .flow-node-card.selected+.flow-path-arrow-right {
-    background: var(--accent-success);
+    background: var(--accent-success) !important;
 }
 
 .flow-node-card.selected+.flow-path-arrow-right::after {
-    border-left-color: var(--accent-success);
+    border-left-color: var(--accent-success) !important;
 }
 
 /* DIAGRAM LEGEND ROW */
