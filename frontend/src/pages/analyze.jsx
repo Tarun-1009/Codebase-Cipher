@@ -553,6 +553,7 @@ function Analyze() {
                             flatNodes={flatNodes}
                             flatEdges={flatEdges}
                             onNodeClick={handleNodeSelection}
+                            selectedNode={selectedNode}
                         />
                     )}
 
