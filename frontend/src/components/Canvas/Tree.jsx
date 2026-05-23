@@ -41,7 +41,7 @@ const FileNode = ({ data }) => {
 
 const nodeTypes = {
     folder: FolderNode,
-    file:   FileNode,
+    file: FileNode,
 };
 
 const edgeOptions = {
