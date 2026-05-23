@@ -2,10 +2,24 @@ import { useState, useEffect, useMemo } from 'react';
 import { FaCopy, FaFileAlt, FaCode, FaTerminal, FaCube } from 'react-icons/fa';
 import './Summary.css';
 
-function Summary({ selectedNode, username, repo }) {
+function normalizeNodePath(pathValue, fallbackName = '') {
+    const raw = typeof pathValue === 'string' && pathValue.trim()
+        ? pathValue.trim()
+        : fallbackName;
+    if (!raw || raw === 'root') return '/';
+    if (raw === '/') return '/';
+    return raw.replace(/^\/+|\/+$/g, '');
+}
+
+function Summary({ selectedNode, username, repo, repoData, selectedBranch }) {
     const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [storedSummaries, setStoredSummaries] = useState({
+        repoSummary: null,
+        fileByPath: {},
+        folderByPath: {},
+    });
     
     // Right sidebar local tabs: 'summary' or 'code'
     const [rightTab, setRightTab] = useState('summary');
@@ -17,6 +31,101 @@ function Summary({ selectedNode, username, repo }) {
                 .filter(Boolean)
             : []
     ), [selectedNode?.imports]);
+    const isRepoRootNode = useMemo(() => {
+        if (!selectedNode || selectedNode.type !== 'folder') return false;
+        const path = (selectedNode.path || '').trim();
+        return path === '/' || selectedNode.id === 'root';
+    }, [selectedNode]);
+
+    useEffect(() => {
+        const controller = new AbortController();
+
+        const fetchStoredSummaries = async () => {
+            setStoredSummaries({
+                repoSummary: null,
+                fileByPath: {},
+                folderByPath: {},
+            });
+
+            try {
+                const branchQuery = selectedBranch ? `?branch=${encodeURIComponent(selectedBranch)}` : '';
+                const fetchLatestRun = async () => {
+                    const latestResponse = await fetch(`http://localhost:5000/summaries/latest/${username}/${repo}${branchQuery}`, {
+                        signal: controller.signal
+                    });
+
+                    if (latestResponse.status === 404) {
+                        return null;
+                    }
+
+                    if (!latestResponse.ok) {
+                        return null;
+                    }
+
+                    return latestResponse.json();
+                };
+
+                let latestRun = await fetchLatestRun();
+                if (!latestRun) {
+                    const buildResponse = await fetch(`http://localhost:5000/summaries/build/${username}/${repo}`, {
+                        method: 'POST',
+                        signal: controller.signal,
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            branch: selectedBranch || undefined,
+                        }),
+                    });
+
+                    if (!buildResponse.ok) {
+                        return;
+                    }
+
+                    latestRun = await fetchLatestRun();
+                }
+
+                if (!latestRun?.id) {
+                    return;
+                }
+
+                const runResponse = await fetch(`http://localhost:5000/summaries/run/${latestRun.id}`, {
+                    signal: controller.signal
+                });
+                if (!runResponse.ok) {
+                    return;
+                }
+
+                const runData = await runResponse.json();
+                const fileByPath = {};
+                const folderByPath = {};
+
+                (runData?.fileSummaries || []).forEach(item => {
+                    const key = normalizeNodePath(item.path, item.name);
+                    fileByPath[key] = item.summary;
+                });
+
+                (runData?.folderSummaries || []).forEach(item => {
+                    const key = normalizeNodePath(item.path, item.name);
+                    folderByPath[key] = item.summary;
+                });
+
+                setStoredSummaries({
+                    repoSummary: runData?.repoSummary?.summary || null,
+                    fileByPath,
+                    folderByPath,
+                });
+            } catch (fetchErr) {
+                if (fetchErr.name === 'AbortError') return;
+            }
+        };
+
+        fetchStoredSummaries();
+
+        return () => {
+            controller.abort();
+        };
+    }, [username, repo, selectedBranch]);
 
     // Fetch summary when a node is selected
     useEffect(() => {
@@ -34,11 +143,78 @@ function Summary({ selectedNode, username, repo }) {
 
             try {
                 // Determine summary type based on node type
-                const summaryType = selectedNode.type === 'folder' ? 'folder' : 'file';
+                const summaryType = isRepoRootNode
+                    ? 'repo'
+                    : selectedNode.type === 'folder'
+                        ? 'folder'
+                        : 'file';
+
+                const normalizedTargetPath = normalizeNodePath(selectedNode.path, selectedNode.name);
+                const storedSummaryText = summaryType === 'repo'
+                    ? storedSummaries.repoSummary
+                    : summaryType === 'folder'
+                        ? storedSummaries.folderByPath[normalizedTargetPath]
+                        : storedSummaries.fileByPath[normalizedTargetPath];
+
+                if (storedSummaryText) {
+                    setSummary({
+                        summary: storedSummaryText,
+                        summaryType,
+                        targetPath: normalizedTargetPath,
+                        repository: `${username}/${repo}`,
+                        source: 'database',
+                    });
+                    return;
+                }
                 
                 // Build richer node context for better AI summaries
                 let fileContent = '';
-                if (summaryType === 'file') {
+                if (summaryType === 'repo') {
+                    const metadata = repoData?.metadata || {};
+                    const rootChildren = Array.isArray(repoData?.tree?.children)
+                        ? repoData.tree.children
+                        : Array.isArray(selectedNode.children)
+                            ? selectedNode.children
+                            : [];
+
+                    const topFolders = rootChildren
+                        .filter(child => child?.type === 'folder')
+                        .map(child => child?.name)
+                        .filter(Boolean);
+                    const topFiles = rootChildren
+                        .filter(child => child?.type === 'file')
+                        .map(child => child?.name)
+                        .filter(Boolean);
+
+                    const endpointPreview = Array.isArray(repoData?.apiEndpoints)
+                        ? repoData.apiEndpoints
+                            .slice(0, 20)
+                            .map(ep => `${ep.method || 'METHOD'} ${ep.path || '/'} -> ${ep.handlerFile || 'unknown handler file'}`)
+                            .join('\n')
+                        : '';
+
+                    const readmeExcerpt = typeof metadata.readmeExcerpt === 'string' && metadata.readmeExcerpt.trim()
+                        ? metadata.readmeExcerpt.slice(0, 5000)
+                        : 'Not specified in provided context.';
+
+                    fileContent = [
+                        `Repository: ${username}/${repo}`,
+                        `Branch: ${metadata?.repository?.branch || 'Not specified in provided context.'}`,
+                        `Total Files: ${metadata.totalFiles ?? 'Not specified in provided context.'}`,
+                        `Total Functions: ${metadata.totalFunctions ?? 'Not specified in provided context.'}`,
+                        `Total Imports: ${metadata.totalImports ?? 'Not specified in provided context.'}`,
+                        `Total API Endpoints: ${metadata.totalEndpoints ?? 'Not specified in provided context.'}`,
+                        `Frameworks: ${Array.isArray(metadata.frameworks) && metadata.frameworks.length ? metadata.frameworks.join(', ') : 'Not specified in provided context.'}`,
+                        '',
+                        `Top-level folders (${topFolders.length}): ${topFolders.slice(0, 40).join(', ') || 'none'}`,
+                        `Top-level files (${topFiles.length}): ${topFiles.slice(0, 40).join(', ') || 'none'}`,
+                        '',
+                        endpointPreview ? `Sample API routes:\n${endpointPreview}` : 'Sample API routes: Not specified in provided context.',
+                        '',
+                        'README excerpt:',
+                        readmeExcerpt
+                    ].join('\n');
+                } else if (summaryType === 'file') {
                     const codeSnippet = selectedNode.code
                         ? selectedNode.code.slice(0, 12000)
                         : 'Source code unavailable for this file.';
@@ -78,7 +254,7 @@ function Summary({ selectedNode, username, repo }) {
                         username: username,
                         repo: repo,
                         summaryType: summaryType,
-                        targetPath: selectedNode.path || selectedNode.name,
+                        targetPath: normalizedTargetPath,
                         fileContent: fileContent,
                     }),
                 });
@@ -112,7 +288,7 @@ function Summary({ selectedNode, username, repo }) {
         return () => {
             controller.abort();
         };
-    }, [selectedNode, username, repo]);
+    }, [selectedNode, username, repo, repoData, isRepoRootNode, normalizedImports, storedSummaries]);
 
     const handleCopyCode = () => {
         if (!selectedNode || !selectedNode.code) return;

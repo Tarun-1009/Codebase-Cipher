@@ -597,7 +597,13 @@ function Analyze() {
                 {activeTab !== "api" && activeTab !== "traceability" && showSummary && (
                     <div className="summary">
                         <span className="panel-label">Analysis Workspace</span>
-                        <Summary selectedNode={selectedNode} username={username} repo={repo} />
+                        <Summary
+                            selectedNode={selectedNode}
+                            username={username}
+                            repo={repo}
+                            repoData={repoData}
+                            selectedBranch={selectedBranch}
+                        />
                     </div>
                 )}
             </div>
