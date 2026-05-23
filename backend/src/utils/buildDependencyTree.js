@@ -56,11 +56,26 @@ async function getDefaultBranch(username, repo) {
   }
 }
 
+async function getBranchHeadCommitSha(username, repo, branch) {
+  try {
+    const res = await axios.get(`https://api.github.com/repos/${username}/${repo}/commits/${encodeURIComponent(branch)}`, {
+      headers: getAuthHeaders()
+    });
+    return res?.data?.sha || null;
+  } catch (err) {
+    const status = err?.response?.status;
+    if (status === 404) return null;
+    if (status === 403 || status === 429 || status === 401) return null;
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Main entry
 // ---------------------------------------------------------------------------
 async function BuildDependencyTree(username, repo, branchParam) {
   const branch = branchParam || await getDefaultBranch(username, repo);
+  const commitHash = await getBranchHeadCommitSha(username, repo, branch);
   const zipUrl = `https://github.com/${username}/${repo}/zipball/${branch}/`;
 
   let response;
@@ -85,6 +100,7 @@ async function BuildDependencyTree(username, repo, branchParam) {
   const parsePromises = [];
   const frameworks = new Set();
   let totalImports = 0;
+  let readmeExcerpt = '';
 
   await new Promise((resolve, reject) => {
     response.data
@@ -96,11 +112,13 @@ async function BuildDependencyTree(username, repo, branchParam) {
 
         const fullPath = segments.join('/');
         const isFile = !entry.type.includes('Directory');
+        const fileName = segments[segments.length - 1] || '';
+        const isReadme = /^readme(\..*)?$/i.test(fileName);
 
         if (!isFile) { entry.autodrain(); return; }
 
         const language = LanguageDetector.detectLanguage(entry.path);
-        if (language === 'unknown') { entry.autodrain(); return; }
+        if (language === 'unknown' && !isReadme) { entry.autodrain(); return; }
 
         let code = '';
         entry.on('data', chunk => { code += chunk.toString(); });
@@ -108,6 +126,15 @@ async function BuildDependencyTree(username, repo, branchParam) {
         const p = new Promise(resolveFile => {
           entry.on('end', async () => {
             try {
+              if (isReadme && !readmeExcerpt.trim()) {
+                readmeExcerpt = code.slice(0, 12000);
+              }
+
+              if (language === 'unknown') {
+                resolveFile();
+                return;
+              }
+
               // --- Imports ---
               const imports = ImportDetector.detectImports(code, language);
               totalImports += imports.length;
@@ -265,7 +292,8 @@ async function BuildDependencyTree(username, repo, branchParam) {
       totalEndpoints: deduplicatedEndpoints.length,
       totalImports,
       frameworks: [...frameworks],
-      repository: { name: repo }
+      repository: { name: repo, branch, commitHash },
+      readmeExcerpt
     }
   };
 }
