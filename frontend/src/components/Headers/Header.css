@@ -182,6 +182,6 @@
 .header-branch-select option {
   background: #1e1b4b;
   /* Deep violet backplate */
-  color: var(--text-primary);
+  color: #ffffff;
   padding: 8px;
 }
