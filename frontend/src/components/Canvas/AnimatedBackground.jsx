@@ -14,9 +14,9 @@ export default function AnimatedBackground() {
         const particleCount = 45;
         const connectionDistance = 140;
         const colors = {
-            cyan: "rgba(6, 182, 212, ",
-            teal: "rgba(20, 184, 166, ",
-            emerald: "rgba(16, 185, 129, "
+            violet: "rgba(168, 85, 247, ",
+            indigo: "rgba(99, 102, 241, ",
+            cyan: "rgba(6, 182, 212, "
         };
 
         let particles = [];
@@ -48,11 +48,11 @@ export default function AnimatedBackground() {
                 // Color flavor selection
                 const rand = Math.random();
                 if (rand < 0.4) {
-                    this.colorFamily = colors.cyan;
+                    this.colorFamily = colors.violet;
                 } else if (rand < 0.7) {
-                    this.colorFamily = colors.teal;
+                    this.colorFamily = colors.indigo;
                 } else {
-                    this.colorFamily = colors.emerald;
+                    this.colorFamily = colors.cyan;
                 }
                 
                 this.baseAlpha = Math.random() * 0.35 + 0.25;
@@ -100,7 +100,7 @@ export default function AnimatedBackground() {
                         ctx.beginPath();
                         ctx.moveTo(p1.x, p1.y);
                         ctx.lineTo(p2.x, p2.y);
-                        ctx.strokeStyle = `rgba(20, 184, 166, ${alpha})`;
+                        ctx.strokeStyle = `rgba(99, 102, 241, ${alpha})`;
                         ctx.lineWidth = 1;
                         ctx.stroke();
                     }
