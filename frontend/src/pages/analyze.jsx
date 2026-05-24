@@ -9,6 +9,7 @@ import AnimatedBackground from "../components/Canvas/AnimatedBackground";
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import flattenTree from "../utils/treeFlattener";
+import { generatePdfReport } from "../utils/generatePdfReport";
 import {
     FaChartBar,
     FaSitemap,
@@ -207,15 +208,14 @@ function Analyze() {
         }
     };
 
-    const handleExport = () => {
+    const handleExport = async () => {
         if (!repoData) return;
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(repoData, null, 2));
-        const downloadAnchor = document.createElement("a");
-        downloadAnchor.setAttribute("href", dataStr);
-        downloadAnchor.setAttribute("download", `${repo}_analysis_report.json`);
-        document.body.appendChild(downloadAnchor);
-        downloadAnchor.click();
-        downloadAnchor.remove();
+        try {
+            await generatePdfReport(repo, repoData, selectedBranch, username);
+        } catch (err) {
+            console.error("PDF generation failed:", err);
+            alert("Failed to export PDF report. Please try again.");
+        }
     };
 
     if (loading) {
