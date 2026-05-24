@@ -7,7 +7,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 6px 12px;
+    padding: 6px 14px;
     font-family: var(--font-sans);
     font-size: 0.76rem;
     color: var(--text-secondary);
@@ -18,17 +18,18 @@
     cursor: pointer;
     box-sizing: border-box;
 
-    /* Glassmorphism foundation */
-    background: rgba(255, 255, 255, 0.72) !important;
-    backdrop-filter: blur(12px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+    /* Realistic Thick Glass Refraction / specularity */
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.03) 40%, rgba(0, 0, 0, 0.18) 75%, rgba(255, 255, 255, 0.12) 100%), rgba(15, 23, 42, 0.45) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
     
-    /* Modern soft long-shadow */
+    /* 3D molded glossy edge shine outline shadows */
     box-shadow: 
-        0 4px 16px -4px rgba(15, 23, 42, 0.05), 
-        0 2px 6px -2px rgba(15, 23, 42, 0.03), 
-        inset 0 1px 1px rgba(255, 255, 255, 0.8) !important;
+        0 12px 28px rgba(0, 0, 0, 0.35),
+        inset 0 2px 2px rgba(255, 255, 255, 0.45),    /* Sharp top reflect shine */
+        inset 0 -2px 2px rgba(0, 0, 0, 0.25),         /* Bottom reflect shadow */
+        inset 0 6px 12px rgba(255, 255, 255, 0.15) !important; /* Soft volume sheen glow */
     
     /* Micro-interaction transition */
     transition: 
@@ -42,44 +43,47 @@
 
 /* Hover Lift Animation */
 .tree-node-card:hover {
-    transform: translateY(-2px) scale(1.02);
+    transform: translateY(-2.5px) scale(1.03);
     color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.85) !important;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.05) 40%, rgba(0, 0, 0, 0.1) 75%, rgba(255, 255, 255, 0.18) 100%), rgba(15, 23, 42, 0.55) !important;
+    box-shadow: 
+        0 16px 36px rgba(0, 0, 0, 0.45),
+        inset 0 3px 3px rgba(255, 255, 255, 0.55),
+        inset 0 -2.5px 2.5px rgba(0, 0, 0, 0.2),
+        inset 0 8px 16px rgba(255, 255, 255, 0.22) !important;
 }
 
 /* ==========================================================================
    Node Category Styles (Folders & Files)
    ========================================================================== */
 
-/* Folder Node: rounded rect, cyan accent */
+/* Folder Node: rounded rect, cyan/teal accent */
 .tree-node-folder {
     border-radius: 12px !important;
-    border-left: 3.5px solid rgba(8, 145, 178, 0.5) !important; /* Translucent cyan */
+    border-left: 4px solid var(--accent-blue-green) !important; /* Glowing Teal */
 }
 
 .tree-node-folder:hover {
-    border-left-color: rgba(8, 145, 178, 1) !important;
-    border-color: rgba(8, 145, 178, 0.25) !important;
+    border-left-color: var(--accent-blue-green) !important;
+    border-color: rgba(45, 212, 191, 0.35) !important;
     box-shadow: 
-        0 12px 24px -8px rgba(8, 145, 178, 0.12), 
-        0 4px 12px -4px rgba(8, 145, 178, 0.06), 
-        inset 0 1px 1px rgba(255, 255, 255, 0.9) !important;
+        0 12px 28px -4px rgba(45, 212, 191, 0.25), 
+        inset 0 1px 0px rgba(255, 255, 255, 0.45) !important;
 }
 
-/* File Node: rounded capsule, indigo accent */
+/* File Node: rounded capsule, violet accent */
 .tree-node-file {
     border-radius: 20px !important;
-    border-left: 3.5px solid rgba(79, 70, 229, 0.5) !important; /* Translucent indigo */
+    border-left: 4px solid var(--accent-primary) !important; /* Glowing Violet */
     padding-left: 14px;
 }
 
 .tree-node-file:hover {
-    border-left-color: rgba(79, 70, 229, 1) !important;
-    border-color: rgba(79, 70, 229, 0.25) !important;
+    border-left-color: var(--accent-primary) !important;
+    border-color: rgba(192, 132, 252, 0.35) !important;
     box-shadow: 
-        0 12px 24px -8px rgba(79, 70, 229, 0.12), 
-        0 4px 12px -4px rgba(79, 70, 229, 0.06), 
-        inset 0 1px 1px rgba(255, 255, 255, 0.9) !important;
+        0 12px 28px -4px rgba(192, 132, 252, 0.25), 
+        inset 0 1px 0px rgba(255, 255, 255, 0.45) !important;
 }
 
 /* ==========================================================================
@@ -104,7 +108,7 @@
 }
 
 .tree-node-chevron-toggle:hover {
-    background: rgba(15, 23, 42, 0.06);
+    background: rgba(255, 255, 255, 0.08);
     color: var(--text-primary);
     transform: scale(1.1);
 }
@@ -153,9 +157,9 @@
     justify-content: center;
     font-size: 0.62rem;
     font-weight: 600;
-    color: var(--accent-secondary);
-    background: rgba(8, 145, 178, 0.06);
-    border: 1px solid rgba(8, 145, 178, 0.12);
+    color: var(--accent-blue-green);
+    background: rgba(45, 212, 191, 0.12);
+    border: 1px solid rgba(45, 212, 191, 0.25);
     padding: 1px 6px;
     border-radius: 99px;
     margin-left: auto;
@@ -167,8 +171,8 @@
 }
 
 .tree-node-card:hover .tree-node-badge {
-    background: rgba(8, 145, 178, 0.1);
-    border-color: rgba(8, 145, 178, 0.2);
+    background: rgba(45, 212, 191, 0.2);
+    border-color: rgba(45, 212, 191, 0.4);
     transform: scale(1.05);
 }
 
@@ -178,30 +182,34 @@
 
 /* Active Path Nodes (Root to Selected File) */
 .tree-node-card.active-path {
-    background: rgba(255, 255, 255, 0.9) !important;
-    border-color: rgba(99, 102, 241, 0.45) !important;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(168, 85, 247, 0.12) 100%), rgba(15, 23, 42, 0.5) !important;
+    border-color: var(--accent-primary) !important;
     box-shadow: 
-        0 0 18px -4px rgba(99, 102, 241, 0.22), 
-        0 4px 12px -2px rgba(99, 102, 241, 0.08), 
-        inset 0 1px 1px rgba(255, 255, 255, 1) !important;
+        0 0 24px rgba(168, 85, 247, 0.35), 
+        inset 0 1px 0px rgba(255, 255, 255, 0.45),
+        inset 1px 0px 0px rgba(255, 255, 255, 0.15) !important;
 }
 
 .active-path.tree-node-folder {
-    border-left: 3.5px solid var(--accent-primary) !important;
+    border-left: 4px solid var(--accent-primary) !important;
 }
 
 .active-path.tree-node-file {
-    border-left: 3.5px solid var(--accent-primary) !important;
+    border-left: 4px solid var(--accent-primary) !important;
 }
 
 .tree-node-card.active-path .tree-node-name {
     font-weight: 600;
-    color: var(--accent-primary);
+    color: #ffffff;
+    text-shadow: 0 0 8px rgba(168, 85, 247, 0.5);
 }
 
 /* Active Path Connectors (Marching Ants Flow Animation) */
 .active-path-edge .react-flow__edge-path {
     stroke-dasharray: 6;
+    stroke: var(--accent-primary) !important; /* Glowing Violet */
+    stroke-width: 3px !important;
+    filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.6));
     animation: flow-dash 1s linear infinite;
     stroke-linecap: round;
 }
@@ -214,8 +222,9 @@
 
 /* Inactive / Default Connectors */
 .normal-path-edge .react-flow__edge-path {
-    stroke: rgba(148, 163, 184, 0.22) !important;
+    stroke: rgba(255, 255, 255, 0.45) !important; /* Bright silver/white line */
     stroke-width: 2px !important;
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2));
 }
 
 /* ==========================================================================
@@ -283,22 +292,23 @@
     align-items: center;
     gap: 4px;
     padding: 5px;
-    background: rgba(255, 255, 255, 0.75);
-    backdrop-filter: blur(12px) saturate(180%);
-    -webkit-backdrop-filter: blur(12px) saturate(180%);
-    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: rgba(15, 23, 42, 0.45) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
     border-radius: 12px;
     box-shadow: 
-        0 10px 30px -10px rgba(15, 23, 42, 0.06), 
-        0 1px 3px rgba(15, 23, 42, 0.03);
+        0 10px 30px -10px rgba(0, 0, 0, 0.5), 
+        inset 0 1px 0px rgba(255, 255, 255, 0.25) !important;
     transition: all 0.2s ease;
 }
 
 .mindmap-controls-panel:hover {
-    border-color: rgba(15, 23, 42, 0.12);
+    border-color: rgba(255, 255, 255, 0.25) !important;
+    background: rgba(15, 23, 42, 0.55) !important;
     box-shadow: 
-        0 12px 36px -8px rgba(15, 23, 42, 0.08), 
-        0 2px 6px rgba(15, 23, 42, 0.04);
+        0 12px 36px -8px rgba(0, 0, 0, 0.6), 
+        inset 0 1px 0px rgba(255, 255, 255, 0.3) !important;
 }
 
 .mindmap-btn {
@@ -317,7 +327,7 @@
 }
 
 .mindmap-btn:hover {
-    background: rgba(99, 102, 241, 0.08);
+    background: rgba(255, 255, 255, 0.08);
     color: var(--accent-primary);
     transform: translateY(-1px);
 }
@@ -338,6 +348,6 @@
 .mindmap-btn-divider {
     width: 1px;
     height: 14px;
-    background: rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.12);
     margin: 0 4px;
 }
