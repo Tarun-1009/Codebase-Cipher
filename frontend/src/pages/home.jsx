@@ -7,15 +7,15 @@ function Home() {
   const [url, setUrl] = useState("");
 
   function handleAnalyze() {
-    if(!url.trim()){
+    if (!url.trim()) {
       alert("Please enter a URL")
       return
     }
-    try{
-      const path =new URL(url).pathname;
-      const [,username, repo] = path.split("/");
+    try {
+      const path = new URL(url).pathname;
+      const [, username, repo] = path.split("/");
       navigate(`/analyze/${username}/${repo}`);
-    }catch(err){
+    } catch (err) {
       console.error(err);
       alert("Invalid URL");
       return
@@ -27,10 +27,11 @@ function Home() {
       <div className="home-bg" />
 
       <div className="home-content">
-        <h1 className="home-title">
-          Codebase <span>Cipher</span>
-        </h1>
-        <p className="home-sub">Analyze your GitHub repo for security vulnerabilities</p>
+        <div className="home-title">
+          <div className="heading">Codebase</div>
+          <div className="heading">Cipher</div>
+        </div>
+        <p className="home-sub">Visualize A Codebase</p>
 
         <div className="search-bar">
           <input

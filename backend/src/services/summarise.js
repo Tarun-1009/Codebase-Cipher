@@ -1,6 +1,198 @@
 // Import axios for making HTTP requests to external APIs
 const axios = require('axios');
 
+const RATE_LIMIT_WAIT_MS = Number(process.env.GROQ_RATE_LIMIT_WAIT_MS || 60000);
+const MAX_RETRY_CYCLES = Number(process.env.GROQ_MAX_RETRY_CYCLES || 30);
+const MAX_PARALLEL_SUMMARY_CALLS = Math.max(1, Number(process.env.GROQ_PARALLEL_REQUESTS || 1));
+
+let activeGroqKeyIndex = 0;
+let runningSummaryCalls = 0;
+const summaryWaiters = [];
+
+function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function normalizeKey(rawValue) {
+    return (rawValue || '').trim().replace(/^['"]|['"]$/g, '');
+}
+
+function isRealPlaceholder(key) {
+    return !key || key === 'your_groq_api_key_here';
+}
+
+function isValidGroqKeyFormat(key) {
+    return key.startsWith('gsk_') && key.length >= 40;
+}
+
+function getGroqApiKeys() {
+    const singleKey = normalizeKey(process.env.GROQ_API_KEY || '');
+    const multiKeyRaw = process.env.GROQ_API_KEYS || '';
+    const multiKeys = multiKeyRaw
+        .split(/[,\n]/)
+        .map(item => normalizeKey(item))
+        .filter(Boolean);
+
+    const uniqueKeys = [...new Set([singleKey, ...multiKeys].filter(Boolean))];
+    const validKeys = uniqueKeys.filter(key => !isRealPlaceholder(key) && isValidGroqKeyFormat(key));
+
+    if (validKeys.length === 0) {
+        throw new Error('No valid Groq API key found. Set GROQ_API_KEY or GROQ_API_KEYS in backend/.env and restart the backend server.');
+    }
+
+    return validKeys;
+}
+
+function nextSummaryWaiter() {
+    const waiter = summaryWaiters.shift();
+    if (waiter) waiter();
+}
+
+async function acquireSummarySlot() {
+    if (runningSummaryCalls < MAX_PARALLEL_SUMMARY_CALLS) {
+        runningSummaryCalls += 1;
+        return;
+    }
+
+    await new Promise(resolve => {
+        summaryWaiters.push(resolve);
+    });
+
+    runningSummaryCalls += 1;
+}
+
+function releaseSummarySlot() {
+    runningSummaryCalls = Math.max(0, runningSummaryCalls - 1);
+    nextSummaryWaiter();
+}
+
+async function runWithSummaryConcurrency(taskFn) {
+    await acquireSummarySlot();
+    try {
+        return await taskFn();
+    } finally {
+        releaseSummarySlot();
+    }
+}
+
+function parseRetryAfterMs(error) {
+    const retryAfterHeader = error?.response?.headers?.['retry-after'];
+    if (!retryAfterHeader) return 0;
+
+    const asNumber = Number(retryAfterHeader);
+    if (Number.isFinite(asNumber) && asNumber > 0) {
+        return Math.ceil(asNumber * 1000);
+    }
+
+    const retryDate = Date.parse(retryAfterHeader);
+    if (!Number.isNaN(retryDate)) {
+        const delta = retryDate - Date.now();
+        return delta > 0 ? delta : 0;
+    }
+
+    return 0;
+}
+
+function createSummaryPrompt(username, repo, summaryType, targetPath, fileContent) {
+    if (summaryType === 'repo') {
+        return `You are an expert software architect. Summarize the repository using only the provided context.\nWrite exactly three concise sections using these plain text labels (not markdown headings): Purpose, Architecture and Tech Stack, Key Components.\nPurpose: 2-4 factual sentences describing what the project does.\nArchitecture and Tech Stack: 2-4 factual sentences covering backend, frontend, AI usage, and major technologies.\nKey Components: 3-6 short bullet points naming core directories/modules and their responsibilities.\nKeep the summary crisp and precise.\nDo not use # or ## anywhere in the output.\nDo not invent details.\nNever use speculative or hedging phrases such as: "this suggests", "likely", "appears", "seems", "might", "probably".\nIf a required detail is missing, write: "Not specified in provided context."\n\nRepository: ${username}/${repo}\n\nRepository Context:\n${fileContent}`;
+    }
+
+    if (summaryType === 'file') {
+        return `You are a code analysis assistant. Summarize only the provided file context and code.\nWrite exactly four concise sections using these plain text labels: File Purpose, Main Logic, Important Functions, Risks and Notes.\nUse 1 short paragraph per section.\nKeep statements factual and specific.\nDo not use # or ## anywhere in the output.\nDo not invent behavior not present in the code.\nAvoid speculative phrases such as "likely", "appears", or "might".\n\nFile: ${targetPath}\nRepository: ${username}/${repo}\n\nContext:\n${fileContent}`;
+    }
+
+    if (summaryType === 'folder') {
+        return `You are an expert software architect analyzing a codebase. Summarize the provided folder based only on its contents and metadata.\nWrite exactly three concise sections using these plain text labels: Folder Role, Notable Contents, How It Fits In Project.\nFor each section, write one short paragraph with direct, concrete wording.\nKeep the summary crisp and precise.\nDo not use # or ## anywhere in the output.\nDo not invent files that are not listed.\nAvoid speculative filler and generic statements.\n\nFolder: ${targetPath}\nRepository: ${username}/${repo}\n\nFolder Structure and Metadata:\n${fileContent}`;
+    }
+
+    throw new Error('Invalid summary type. Must be "repo", "file", or "folder"');
+}
+
+async function requestGroqSummary(summaryPrompt) {
+    const groqApiUrl = 'https://api.groq.com/openai/v1/chat/completions';
+    const keys = getGroqApiKeys();
+    let sawRateLimit = false;
+    let authFailures = 0;
+    let lastError = null;
+
+    for (let cycle = 1; cycle <= MAX_RETRY_CYCLES; cycle += 1) {
+        let waitFromRetryAfterMs = 0;
+        const attemptedKeyIndexes = new Set();
+        while (attemptedKeyIndexes.size < keys.length) {
+            const keyIndex = ((activeGroqKeyIndex % keys.length) + keys.length) % keys.length;
+            attemptedKeyIndexes.add(keyIndex);
+            const groqApiKey = keys[keyIndex];
+
+            try {
+                const groqResponse = await axios({
+                    method: 'post',
+                    url: groqApiUrl,
+                    headers: {
+                        'Authorization': `Bearer ${groqApiKey}`,
+                        'Content-Type': 'application/json',
+                    },
+                    data: {
+                        model: 'qwen/qwen3-32b',
+                        reasoning_effort: 'none',
+                        messages: [
+                            {
+                                role: 'system',
+                                content: 'Return only the final answer.'
+                            },
+                            {
+                                role: 'user',
+                                content: summaryPrompt,
+                            },
+                        ],
+                        temperature: 0.7,
+                        max_tokens: 500,
+                    },
+                });
+
+                return groqResponse.data.choices[0].message.content;
+            } catch (error) {
+                lastError = error;
+                const status = error?.response?.status;
+
+                if (status === 429) {
+                    sawRateLimit = true;
+                    waitFromRetryAfterMs = Math.max(waitFromRetryAfterMs, parseRetryAfterMs(error));
+                    activeGroqKeyIndex = (keyIndex + 1) % keys.length;
+                    continue;
+                }
+
+                if (status === 401) {
+                    authFailures += 1;
+                    activeGroqKeyIndex = (keyIndex + 1) % keys.length;
+                    continue;
+                }
+
+                if (status === 400) {
+                    throw new Error(`Groq API error: ${error.response?.data?.error?.message || 'Invalid request'}`);
+                }
+
+                throw new Error(`Summary generation failed: ${error.message}`);
+            }
+        }
+
+        if (cycle < MAX_RETRY_CYCLES && sawRateLimit) {
+            const effectiveWait = Math.max(RATE_LIMIT_WAIT_MS, waitFromRetryAfterMs);
+            await wait(effectiveWait);
+        }
+    }
+
+    if (authFailures > 0 && authFailures >= keys.length * MAX_RETRY_CYCLES) {
+        throw new Error('Groq API authentication failed for all configured keys. Check GROQ_API_KEY and GROQ_API_KEYS.');
+    }
+
+    if (sawRateLimit) {
+        throw new Error(`Groq API rate limit exceeded across all configured keys after ${MAX_RETRY_CYCLES} retry cycles. Increase GROQ_MAX_RETRY_CYCLES or wait and retry.`);
+    }
+
+    throw new Error(`Summary generation failed: ${lastError?.message || 'Unknown Groq error'}`);
+}
+
 // Define the async function that generates summaries based on user input
 // Parameters:
 // - username: GitHub username
@@ -9,116 +201,23 @@ const axios = require('axios');
 // - targetPath: Path to specific file or folder (optional, null for whole repo)
 // - fileContent: The actual code/content to be summarized (passed from frontend)
 async function generateSummary(username, repo, summaryType, targetPath, fileContent) {
-    try {
+    return runWithSummaryConcurrency(async () => {
         // Validate that fileContent is provided - this is the code that needs to be summarized
         if (!fileContent) {
             throw new Error('File content is required for summarization');
         }
 
-        // Create a descriptive prompt based on the summary type
-        // This helps the AI understand the context of what it's summarizing
-        let summaryPrompt = '';
+        const summaryPrompt = createSummaryPrompt(username, repo, summaryType, targetPath, fileContent);
+        const summary = await requestGroqSummary(summaryPrompt);
 
-        // Check if user wants summary of entire repository
-        if (summaryType === 'repo') {
-            summaryPrompt = `Please provide a concise and clear summary of the following GitHub repository structure and its purpose:\n\nRepository: ${username}/${repo}\n\nContent:\n${fileContent}`;
-        }
-        // Check if user wants summary of a specific file
-        else if (summaryType === 'file') {
-            summaryPrompt = `Please provide a concise and clear summary of the following source code file:\n\nFile: ${targetPath}\nRepository: ${username}/${repo}\n\nCode:\n${fileContent}`;
-        }
-        // Check if user wants summary of a specific folder
-        else if (summaryType === 'folder') {
-            summaryPrompt = `Please provide a concise and clear summary of the following folder structure and its contents:\n\nFolder: ${targetPath}\nRepository: ${username}/${repo}\n\nContent:\n${fileContent}`;
-        }
-        // If summaryType is invalid, throw an error
-        else {
-            throw new Error('Invalid summary type. Must be "repo", "file", or "folder"');
-        }
-
-        // Define the Groq API endpoint for generating content
-        const groqApiUrl = 'https://api.groq.com/openai/v1/chat/completions';
-
-        // Debug: Log that we're about to make the API call
-        console.log('Making Groq API call with key:', process.env.GROQ_API_KEY ? 'Key exists' : 'Key is undefined');
-
-        // Set up the request configuration with authentication and parameters
-        const groqConfig = {
-            // Specify the HTTP method as POST
-            method: 'post',
-            // Set the endpoint URL
-            url: groqApiUrl,
-            // Prepare headers with authorization using the Groq API key
-            headers: {
-                // Include the Bearer token for authentication using the API key from .env file
-                'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-                // Specify that we're sending JSON data
-                'Content-Type': 'application/json',
-            },
-            // Define the request body with the chat completion parameters
-            data: {
-                // Specify the model to use for generating the summary (using a currently supported Groq model)
-                model: 'llama-3.3-70b-versatile',
-                // Array of messages to send to the API
-                messages: [
-                    {
-                        // Set role as user - we are the ones asking for the summary
-                        role: 'user',
-                        // Include the constructed prompt with the code/content to summarize
-                        content: summaryPrompt,
-                    },
-                ],
-                // Set temperature to 0.7 for balanced creativity and accuracy
-                temperature: 0.7,
-                // Limit the response to 500 tokens to keep summaries concise
-                max_tokens: 500,
-            },
-        };
-
-        // Make the API request to Groq with the configured parameters
-        const groqResponse = await axios(groqConfig);
-
-        // Extract the generated summary text from the API response
-        // The response contains choices array with the first choice's message content
-        const summary = groqResponse.data.choices[0].message.content;
-
-        // Return an object containing the summary and metadata about the request
         return {
-            // The actual summary text generated by Groq API
             summary: summary,
-            // Type of summary for reference (repo, file, or folder)
             summaryType: summaryType,
-            // Path of the target if it was a file or folder summary
             targetPath: targetPath || 'entire repository',
-            // Include repository information for context
             repository: `${username}/${repo}`,
-            // Add timestamp to track when the summary was generated
             generatedAt: new Date().toISOString(),
         };
-    } 
-    // Catch any errors that occur during the summarization process
-    catch (error) {
-        // Log the full error for debugging
-        console.error('Groq API Error:', error.response?.status, error.response?.data);
-        console.error('Error message:', error.message);
-        
-        // Check if error is from Groq API rate limiting
-        if (error.response && error.response.status === 429) {
-            throw new Error('Groq API rate limit exceeded. Please try again later.');
-        }
-        // Check if error is from authentication issues
-        else if (error.response && error.response.status === 401) {
-            throw new Error('Groq API authentication failed. Check your API key.');
-        }
-        // Check if error is from bad request
-        else if (error.response && error.response.status === 400) {
-            throw new Error(`Groq API error: ${error.response.data?.error?.message || 'Invalid request'}`);
-        }
-        // For any other error, re-throw with context
-        else {
-            throw new Error(`Summary generation failed: ${error.message}`);
-        }
-    }
+    });
 }
 
 // Export the generateSummary function so it can be used in other files

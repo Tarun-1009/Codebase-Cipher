@@ -7,16 +7,16 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
   // 1. Set the layout direction and node size
   dagreGraph.setGraph({
     rankdir: direction,
-    nodesep: 12,
-    ranksep: 60,
+    nodesep: 20,
+    ranksep: 80,
     marginx: 20,
     marginy: 20,
     ranker: 'tight-tree'
   });
 
   // 2. Add nodes to dagre
-  const NODE_W = 180;
-  const NODE_H = 34;
+  const NODE_W = 200;
+  const NODE_H = 38;
   nodes.forEach((node) => {
     dagreGraph.setNode(node.id, { width: NODE_W, height: NODE_H });
   });
