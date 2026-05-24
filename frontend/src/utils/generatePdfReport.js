@@ -16,7 +16,7 @@ export async function generatePdfReport(repoName, repoData, selectedBranch, user
   try {
     const branchQuery = selectedBranch ? `?branch=${encodeURIComponent(selectedBranch)}` : '';
     const latestResponse = await fetch(`http://localhost:5000/summaries/latest/${username}/${repoName}${branchQuery}`);
-    
+
     if (latestResponse.ok) {
       const latestRun = await latestResponse.json();
       if (latestRun?.id) {
@@ -36,7 +36,7 @@ export async function generatePdfReport(repoName, repoData, selectedBranch, user
     const readmeExcerpt = repoData?.metadata?.readmeExcerpt
       ? repoData.metadata.readmeExcerpt.substring(0, 450) + '...'
       : 'No README description was found in this repository.';
-    
+
     aiSummary = `This is a comprehensive code intelligence report for the repository ${username}/${repoName}. Our static analysis engine has thoroughly parsed the source files, cataloged functions and imports, mapped trace paths, and resolved API endpoints.
 
 Ecosystem Insights:
@@ -54,16 +54,22 @@ ${readmeExcerpt}`;
     format: 'a4'
   });
 
-  const totalPages = 3;
-  const primaryColor = '#4f46e5'; // Indigo
-  const secondaryColor = '#7c3aed'; // Purple
-  const textDark = '#0f172a'; // Slate-900
-  const textSecondary = '#475569'; // Slate-600
-  const textMuted = '#94a3b8'; // Slate-400
-  const borderLight = '#e2e8f0'; // Slate-200
-  const cardBg = '#f8fafc'; // Slate-50
+  let totalPages = 3;
+  const bgColor = '#0f172a'; // Deep professional dark background (Slate-900)
+  const primaryColor = '#c084fc'; // Violet / Lilac accent (accent-primary)
+  const secondaryColor = '#3b82f6'; // Sky Blue accent (accent-secondary)
+  const textDark = '#f8fafc'; // Slate-50 (text-primary)
+  const textSecondary = '#cbd5e1'; // Slate-300 (text-secondary)
+  const textMuted = '#94a3b8'; // Slate-400 (text-muted)
+  const borderLight = '#2e3748'; // Slate-700 / Translucent white borders
+  const cardBg = '#162032'; // Premium Slate-800 translucent-style card background
 
   // 3. Helper Functions for Layout & Decoration
+  const drawPageBackground = () => {
+    doc.setFillColor(bgColor);
+    doc.rect(0, 0, 210, 297, 'F');
+  };
+
   const drawPageBorder = (pageNum) => {
     // Beautiful top double-colored accent border
     doc.setFillColor(primaryColor);
@@ -77,7 +83,7 @@ ${readmeExcerpt}`;
     doc.setFontSize(10);
     doc.setTextColor(primaryColor);
     doc.text('CODEBASE CIPHER // INTELLIGENCE REPORT', 15, 17);
-    
+
     doc.setFont('Helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(textMuted);
@@ -104,9 +110,18 @@ ${readmeExcerpt}`;
   // Flatten tree for stats if needed
   const { totalFiles, languages } = flattenTree(repoData?.tree);
 
+  // Helper to add a new page with background, borders, and standard headers
+  const addNewPage = () => {
+    doc.addPage();
+    drawPageBackground();
+    drawPageBorder(doc.internal.getNumberOfPages());
+    drawHeader();
+  };
+
   // ==========================================
   // PAGE 1: Executive Repository Summary
   // ==========================================
+  drawPageBackground();
   drawPageBorder(1);
   drawHeader();
 
@@ -124,9 +139,9 @@ ${readmeExcerpt}`;
   // Stats Grid - 4 Cards (2x2)
   const stats = [
     { label: 'TOTAL FILES', value: repoData?.metadata?.totalFiles || totalFiles || 0, color: '#3b82f6' },
-    { label: 'FUNCTIONS PARSED', value: repoData?.metadata?.totalFunctions || 0, color: '#7c3aed' },
-    { label: 'PACKAGE IMPORTS', value: repoData?.metadata?.totalImports || 0, color: '#14b8a6' },
-    { label: 'API ROUTE ENDPOINTS', value: repoData?.metadata?.totalEndpoints || repoData?.apiEndpoints?.length || 0, color: '#059669' }
+    { label: 'FUNCTIONS PARSED', value: repoData?.metadata?.totalFunctions || 0, color: '#a855f7' },
+    { label: 'PACKAGE IMPORTS', value: repoData?.metadata?.totalImports || 0, color: '#2dd4bf' },
+    { label: 'API ROUTE ENDPOINTS', value: repoData?.metadata?.totalEndpoints || repoData?.apiEndpoints?.length || 0, color: '#10b981' }
   ];
 
   stats.forEach((stat, idx) => {
@@ -174,12 +189,12 @@ ${readmeExcerpt}`;
   const barY = 98;
   const barWidth = 180;
   const barHeight = 5;
-  
+
   // Draw base progress background
-  doc.setFillColor('#f1f5f9');
+  doc.setFillColor('#1e293b');
   doc.rect(barX, barY, barWidth, barHeight, 'F');
 
-  const langColors = ['#4f46e5', '#7c3aed', '#14b8a6', '#059669', '#d97706', '#dc2626', '#64748b'];
+  const langColors = ['#3b82f6', '#a855f7', '#2dd4bf', '#10b981', '#f59e0b', '#ef4444', '#64748b'];
   let currentX = barX;
 
   // Draw stacked elements
@@ -212,7 +227,7 @@ ${readmeExcerpt}`;
     doc.setFontSize(8.5);
     doc.setTextColor(textDark);
     doc.text(`${lang.name}:`, legendX + 4, legendY);
-    
+
     doc.setFont('Helvetica', 'normal');
     doc.setTextColor(textSecondary);
     doc.text(`${lang.percentage}%`, legendX + doc.getTextWidth(`${lang.name}:`) + 5, legendY);
@@ -231,11 +246,11 @@ ${readmeExcerpt}`;
   const boxHeight = 140;
   doc.setFillColor(cardBg);
   doc.rect(15, boxY, 180, boxHeight, 'F');
-  
+
   doc.setDrawColor(primaryColor);
   doc.setLineWidth(0.8);
-  doc.line(15, boxY, 15, boxY + boxHeight); // Indigo left accent bar
-  
+  doc.line(15, boxY, 15, boxY + boxHeight); // Lilac left accent bar
+
   doc.setDrawColor(borderLight);
   doc.setLineWidth(0.2);
   doc.rect(15, boxY, 180, boxHeight, 'S');
@@ -244,10 +259,10 @@ ${readmeExcerpt}`;
   doc.setFont('Helvetica', 'normal');
   doc.setFontSize(9.2);
   doc.setTextColor(textSecondary);
-  
+
   const wrappedLines = doc.splitTextToSize(aiSummary, 168);
   let textY = boxY + 8;
-  
+
   // Make sure text doesn't overflow the box container on page 1
   const maxLinesOnPage1 = 29;
   const linesToRender = wrappedLines.slice(0, maxLinesOnPage1);
@@ -263,14 +278,10 @@ ${readmeExcerpt}`;
     doc.text('... Summary continues on folder explorer logs ...', 21, textY + 2);
   }
 
-  drawFooter(1);
-
   // ==========================================
-  // PAGE 2: Directory Architecture & Dependencies
+  // PAGE 2+: Directory Architecture & Dependencies
   // ==========================================
-  doc.addPage();
-  drawPageBorder(2);
-  drawHeader();
+  addNewPage();
 
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(14);
@@ -282,28 +293,15 @@ ${readmeExcerpt}`;
   doc.setTextColor(textSecondary);
   doc.text('Nested folder structures representing the static core components of the project.', 15, 35);
 
-  // Render tree helper
-  const treeBoxY = 40;
-  const treeBoxHeight = 150;
-  doc.setFillColor(cardBg);
-  doc.rect(15, treeBoxY, 180, treeBoxHeight, 'F');
-  doc.setDrawColor(borderLight);
-  doc.setLineWidth(0.2);
-  doc.rect(15, treeBoxY, 180, treeBoxHeight, 'S');
-
-  // Draw top border accent
-  doc.setFillColor(secondaryColor);
-  doc.rect(15, treeBoxY, 180, 1.2, 'F');
-
-  // Construct printable tree nodes
+  // Construct printable tree nodes (NO limit on depth or node count, showing complete repository tree)
   const printTree = [];
   const buildPrintTree = (node, prefix = '', isLast = true, depth = 0) => {
-    if (!node || depth > 3 || printTree.length > 28) return;
+    if (!node) return;
 
     const isFolder = node.children && node.children.length > 0;
-    const connector = depth === 0 ? '' : (isLast ? '└── ' : '├── ');
+    const connector = depth === 0 ? '' : (isLast ? '\\-- ' : '|-- ');
     const displayLabel = isFolder ? `${node.name}/` : node.name;
-    
+
     printTree.push({
       text: `${prefix}${connector}${displayLabel}`,
       isFolder,
@@ -320,36 +318,66 @@ ${readmeExcerpt}`;
         return a.name.localeCompare(b.name);
       });
 
-      const nextPrefix = depth === 0 ? '' : prefix + (isLast ? '    ' : '│   ');
-      
-      // Limit recursion size to look perfect on paper
-      const childrenToPrint = sortedChildren.slice(0, 12); 
-      childrenToPrint.forEach((child, index) => {
+      const nextPrefix = depth === 0 ? '' : prefix + (isLast ? '    ' : '|   ');
+
+      sortedChildren.forEach((child, index) => {
         buildPrintTree(
           child,
           nextPrefix,
-          index === childrenToPrint.length - 1,
+          index === sortedChildren.length - 1,
           depth + 1
         );
       });
-      
-      if (sortedChildren.length > 12) {
-        printTree.push({
-          text: `${nextPrefix}└── ... (${sortedChildren.length - 12} more items)`,
-          isFolder: false,
-          depth: depth + 1
-        });
-      }
     }
   };
 
   buildPrintTree(repoData?.tree);
 
-  // Render tree lines in monospace to preserve branch shapes
+  // Render tree lines inside beautiful dynamic glass cards
   doc.setFont('Courier', 'bold');
   doc.setFontSize(8.5);
-  let treeY = treeBoxY + 8;
-  printTree.forEach(node => {
+
+  let treeY = 44;
+  let pageStartIndex = 0;
+
+  // Draw the initial card background for the first tree page
+  const drawTreePageCard = (startIndex) => {
+    // Calculate how many nodes will fit on this page (max 46 nodes per page)
+    const nodesOnThisPage = Math.min(printTree.length - startIndex, 46);
+    const cardHeight = nodesOnThisPage * 4.8 + 6;
+
+    doc.setFillColor(cardBg);
+    doc.rect(15, 38, 180, cardHeight, 'F');
+    doc.setDrawColor(borderLight);
+    doc.setLineWidth(0.2);
+    doc.rect(15, 38, 180, cardHeight, 'S');
+
+    // Draw top colored accent line on the very first tree page card
+    if (startIndex === 0) {
+      doc.setFillColor(secondaryColor);
+      doc.rect(15, 38, 180, 1.2, 'F');
+    }
+  };
+
+  // Draw first card background before printing nodes
+  drawTreePageCard(pageStartIndex);
+
+  printTree.forEach((node, index) => {
+    // If the next line will exceed the printable area, wrap to the next page
+    if (treeY > 260) {
+      // Add a fresh page
+      addNewPage();
+      doc.setFont('Courier', 'bold');
+      doc.setFontSize(8.5);
+
+      // Draw card background for the new page BEFORE rendering text
+      pageStartIndex = index;
+      drawTreePageCard(pageStartIndex);
+
+      // Reset y coordinate
+      treeY = 44;
+    }
+
     if (node.isFolder) {
       doc.setTextColor(primaryColor);
     } else {
@@ -359,19 +387,25 @@ ${readmeExcerpt}`;
     treeY += 4.8;
   });
 
-  // Dependencies Card Section at the bottom of Page 2
+  // Dependencies Card Section placed dynamically after the tree
+  let depY = treeY + 8;
+  if (depY + 65 > 270) {
+    addNewPage();
+    depY = 32;
+  }
+
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(textDark);
-  doc.text('Key Frameworks & Dependency Ecosystem', 15, 202);
+  doc.text('Key Frameworks & Dependency Ecosystem', 15, depY);
 
-  const depY = 207;
+  depY += 5; // Start card y coordinate
   const depHeight = 65;
   doc.setFillColor(cardBg);
   doc.rect(15, depY, 180, depHeight, 'F');
   doc.setDrawColor(borderLight);
   doc.rect(15, depY, 180, depHeight, 'S');
-  
+
   doc.setFillColor(primaryColor);
   doc.rect(15, depY, 180, 1.2, 'F');
 
@@ -389,7 +423,7 @@ ${readmeExcerpt}`;
   doc.setFont('Helvetica', 'bold');
   doc.setTextColor(textDark);
   doc.text('Architectural Role mapping:', 22, depY + 16);
-  
+
   const roles = [
     { path: 'backend/src/services', desc: 'AI Summaries, dependencies engines, tree-sitter core parsing' },
     { path: 'backend/src/lib', desc: 'Prisma Client, Database connections & Neon settings' },
@@ -399,7 +433,7 @@ ${readmeExcerpt}`;
 
   roles.forEach((role, index) => {
     const roleY = depY + 24 + index * 9;
-    
+
     // Bullet dot
     doc.setFillColor(secondaryColor);
     doc.circle(23, roleY - 1, 0.8, 'F');
@@ -415,14 +449,10 @@ ${readmeExcerpt}`;
     doc.text(`-  ${role.desc}`, 68, roleY);
   });
 
-  drawFooter(2);
-
   // ==========================================
-  // PAGE 3: API Gateway & Endpoints Catalog
+  // PAGE 3+: API Gateway & Endpoints Catalog
   // ==========================================
-  doc.addPage();
-  drawPageBorder(3);
-  drawHeader();
+  addNewPage(); // Start the API catalog on a fresh page
 
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(14);
@@ -434,33 +464,42 @@ ${readmeExcerpt}`;
   doc.setTextColor(textSecondary);
   doc.text('Parsed REST API endpoints detected inside the server router controls.', 15, 35);
 
-  // Table header
-  const tableY = 42;
+  // Table structure variables
   const colWidths = { method: 24, path: 96, handler: 60 };
   const headers = { method: 'METHOD', path: 'API ENDPOINT ROUTE', handler: 'HANDLER FILE / ORIGIN' };
 
-  // Draw header backplate
-  doc.setFillColor(textDark);
-  doc.rect(15, tableY, 180, 8, 'F');
+  let rowY = 42;
 
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor('#ffffff');
-  doc.text(headers.method, 17, tableY + 5.5);
-  doc.text(headers.path, 15 + colWidths.method + 5, tableY + 5.5);
-  doc.text(headers.handler, 15 + colWidths.method + colWidths.path + 5, tableY + 5.5);
+  const drawTableHeader = (yPos) => {
+    doc.setFillColor('#1e293b');
+    doc.rect(15, yPos, 180, 8, 'F');
 
-  // Fetch endpoints
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor('#ffffff');
+    doc.text(headers.method, 17, yPos + 5.5);
+    doc.text(headers.path, 15 + colWidths.method + 5, yPos + 5.5);
+    doc.text(headers.handler, 15 + colWidths.method + colWidths.path + 5, yPos + 5.5);
+  };
+
+  drawTableHeader(rowY);
+  rowY += 8;
+
+  // Render ALL api endpoints dynamically wrapping pages as needed
   const endpoints = repoData?.apiEndpoints || [];
-  
-  let rowY = tableY + 8;
-  const maxEndpointsToDisplay = 18; // Keep bounded cleanly to A4 limits
-  const listToRender = endpoints.slice(0, maxEndpointsToDisplay);
 
-  listToRender.forEach((ep, index) => {
+  endpoints.forEach((ep, index) => {
+    // If the next row exceeds page limit, add a new page and redraw headers
+    if (rowY + 11 > 270) {
+      addNewPage();
+      rowY = 32;
+      drawTableHeader(rowY);
+      rowY += 8;
+    }
+
     // Alternating rows
     if (index % 2 === 1) {
-      doc.setFillColor('#f8fafc');
+      doc.setFillColor(cardBg);
       doc.rect(15, rowY, 180, 11, 'F');
     }
 
@@ -470,13 +509,13 @@ ${readmeExcerpt}`;
     doc.line(15, rowY + 11, 195, rowY + 11);
 
     // Method Badge background color
-    const methodStr = (ep.method || 'GET').toUpperCase();
-    let badgeColor = '#64748b'; // default grey
+    const methodStr = (ep?.method || 'GET').toUpperCase();
+    let badgeColor = '#64748b';
     let badgeText = '#ffffff';
-    if (methodStr === 'GET') badgeColor = '#059669'; // success green
-    else if (methodStr === 'POST') badgeColor = '#4f46e5'; // indigo blue
-    else if (methodStr === 'PUT') badgeColor = '#d97706'; // warning amber
-    else if (methodStr === 'DELETE') badgeColor = '#dc2626'; // danger red
+    if (methodStr === 'GET') badgeColor = '#10b981';
+    else if (methodStr === 'POST') badgeColor = '#a855f7';
+    else if (methodStr === 'PUT') badgeColor = '#f59e0b';
+    else if (methodStr === 'DELETE') badgeColor = '#ef4444';
 
     // Draw method badge
     doc.setFillColor(badgeColor);
@@ -492,13 +531,13 @@ ${readmeExcerpt}`;
     doc.setFont('Courier', 'bold');
     doc.setFontSize(8.2);
     doc.setTextColor(textDark);
-    doc.text(ep.path || '/', 15 + colWidths.method + 5, rowY + 6.8);
+    doc.text(ep?.path || '/', 15 + colWidths.method + 5, rowY + 6.8);
 
     // Handler file
     doc.setFont('Helvetica', 'normal');
     doc.setFontSize(8.5);
     doc.setTextColor(textSecondary);
-    doc.text(ep.handlerFile || 'unknown script', 15 + colWidths.method + colWidths.path + 5, rowY + 6.8);
+    doc.text(ep?.handlerFile || 'unknown script', 15 + colWidths.method + colWidths.path + 5, rowY + 6.8);
 
     rowY += 11;
   });
@@ -508,19 +547,17 @@ ${readmeExcerpt}`;
     doc.setFont('Helvetica', 'italic');
     doc.setFontSize(9.5);
     doc.setTextColor(textMuted);
-    doc.text('No server-side router API endpoints detected in this repository branch.', 50, tableY + 30);
+    doc.text('No server-side router API endpoints detected in this repository branch.', 50, rowY + 10);
+    rowY += 15;
   }
 
-  // If there are more endpoints than can fit on page 3
-  if (endpoints.length > maxEndpointsToDisplay) {
-    doc.setFont('Helvetica', 'italic');
-    doc.setFontSize(8);
-    doc.setTextColor(textMuted);
-    doc.text(`* Showing first ${maxEndpointsToDisplay} endpoints. Total of ${endpoints.length} API routes parsed in the gateway.`, 16, rowY + 5);
+  // Verification block dynamically placed after the table
+  let conY = rowY + 5;
+  if (conY + 25 > 270) {
+    addNewPage();
+    conY = 32;
   }
 
-  // Conclusion summary block
-  const conY = 248;
   doc.setDrawColor(borderLight);
   doc.setLineWidth(0.4);
   doc.line(15, conY, 195, conY);
@@ -542,8 +579,23 @@ ${readmeExcerpt}`;
   doc.setTextColor(primaryColor);
   doc.text('CODEBASE CIPHER ENGINE v1.0', 195, conY + 11, { align: 'right' });
 
-  drawFooter(3);
+  // ==========================================
+  // POST-PROCESSING: Dynamic Footer & Page Numbers
+  // ==========================================
+  totalPages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setDrawColor(borderLight);
+    doc.setLineWidth(0.3);
+    doc.line(15, 280, 195, 280);
 
-  // 4. Save and trigger PDF download on client browser
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(textMuted);
+    doc.text('Generated by Codebase Cipher Static Analysis Engine', 15, 286);
+    doc.text(`Page ${i} of ${totalPages}`, 195, 286, { align: 'right' });
+  }
+
+  // 5. Save and trigger PDF download on client browser
   doc.save(`${repoName}_code_intelligence_report.pdf`);
 }
