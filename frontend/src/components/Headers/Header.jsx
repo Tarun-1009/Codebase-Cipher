@@ -1,10 +1,12 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import './Header.css';
 import logo from '../../assets/logo.png';
 import { FaPlay, FaDownload } from 'react-icons/fa';
 
 const Header = ({ repoUrl, setRepoUrl, onAnalyze, onExport, branches = [], selectedBranch, setSelectedBranch }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isAnalyze = location.pathname.startsWith('/analyze');
 
   const handleLogoClick = () => {
     navigate('/');
@@ -19,7 +21,11 @@ const Header = ({ repoUrl, setRepoUrl, onAnalyze, onExport, branches = [], selec
   return (
     <header className="app-header">
       <div className="header-left" onClick={handleLogoClick} style={{ cursor: 'pointer' }}>
-        <img src={logo} alt="Logo" className="logo" />
+        {isAnalyze ? (
+          <span className="header-logo">Codebase Cipher</span>
+        ) : (
+          <img src={logo} alt="Logo" className="logo" />
+        )}
       </div>
 
       <div class="app-header">
