@@ -268,8 +268,6 @@ function DependencyGraph({ repoData, repoName, onNodeClick }) {
                 <Panel position="top-right" className="dep-panel-right">
                     <div className="dep-legend-item">
                         <span className="dep-legend-color" style={{ backgroundColor: '#3b82f6' }} /> Dependency
-                    </div>
-                    <div className="dep-legend-item">
                         <span className="dep-legend-color" style={{ backgroundColor: '#3b82f6', opacity: 0.4 }} /> External Package
                     </div>
                 </Panel>

@@ -9,6 +9,7 @@ import AnimatedBackground from "../components/Canvas/AnimatedBackground";
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import flattenTree from "../utils/treeFlattener";
+import { generatePdfReport } from "../utils/generatePdfReport";
 import {
     FaChartBar,
     FaSitemap,
@@ -16,12 +17,12 @@ import {
     FaExchangeAlt,
     FaRoute,
     FaInfoCircle,
-    FaCode,
     FaCube,
     FaFolderOpen,
-    FaRegFileCode,
     FaEye,
-    FaEyeSlash
+    FaEyeSlash,
+    FaEllipsisV,
+    FaTimes
 } from "react-icons/fa";
 import "./analyze.css";
 
@@ -42,6 +43,17 @@ function Analyze() {
     const [activeTab, setActiveTab] = useState("dashboard"); // 'dashboard', 'tree', 'dependencies', 'traceability', 'api'
     const [showExplorer, setShowExplorer] = useState(true);
     const [showSummary, setShowSummary] = useState(true);
+
+    // Mobile specific navigation & overlay states
+    const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+
+    // Close overlays/drawers by default on mobile/tablet viewports on mount
+    useEffect(() => {
+        if (window.innerWidth < 1024) {
+            setShowExplorer(false);
+            setShowSummary(false);
+        }
+    }, []);
 
     // Top Bar Address input
     const [repoUrl, setRepoUrl] = useState(`https://github.com/${username}/${repo}`);
@@ -207,15 +219,14 @@ function Analyze() {
         }
     };
 
-    const handleExport = () => {
+    const handleExport = async () => {
         if (!repoData) return;
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(repoData, null, 2));
-        const downloadAnchor = document.createElement("a");
-        downloadAnchor.setAttribute("href", dataStr);
-        downloadAnchor.setAttribute("download", `${repo}_analysis_report.json`);
-        document.body.appendChild(downloadAnchor);
-        downloadAnchor.click();
-        downloadAnchor.remove();
+        try {
+            await generatePdfReport(repo, repoData, selectedBranch, username);
+        } catch (err) {
+            console.error("PDF generation failed:", err);
+            alert("Failed to export PDF report. Please try again.");
+        }
     };
 
     if (loading) {
@@ -386,8 +397,30 @@ function Analyze() {
             />
 
             <div className="main-wrapper">
+                {/* Backdrop overlay for mobile drawers */}
+                {(showExplorer || showSummary) && (
+                    <div 
+                        className="drawer-backdrop" 
+                        onClick={() => {
+                            setShowExplorer(false);
+                            setShowSummary(false);
+                        }}
+                    />
+                )}
+
                 {/* Left Sidebar Layout */}
-                <div className="sidebar-panel">
+                <div className={`sidebar-panel ${showExplorer ? 'open-drawer' : 'closed-drawer'}`}>
+                    <div className="sidebar-mobile-header">
+                        <span className="panel-label">Intelligence Navigation</span>
+                        <button 
+                            className="sidebar-close-btn"
+                            onClick={() => setShowExplorer(false)}
+                            title="Close Directory Explorer"
+                        >
+                            <FaTimes />
+                        </button>
+                    </div>
+
                     {/* Navigation Tab Selections */}
                     <div className="navigation-group">
                         <span className="panel-label">Intelligence Navigation</span>
@@ -471,6 +504,87 @@ function Analyze() {
 
                 {/* Center Panel View Routing */}
                 <div className="tree-container">
+                    {/* Compact Mobile Sub-Header */}
+                    <div className="mobile-sub-header">
+                        <button 
+                            className={`mobile-toggle-btn explorer-btn-toggle ${showExplorer ? 'active' : ''}`}
+                            onClick={() => setShowExplorer(!showExplorer)}
+                            title="Toggle File Explorer"
+                        >
+                            <FaFolderOpen />
+                        </button>
+                        
+                        <div className="mobile-active-view-title">
+                            {activeTab === "dashboard" && "Dashboard"}
+                            {activeTab === "tree" && "Tree Flow"}
+                            {activeTab === "dependencies" && "Dependencies"}
+                            {activeTab === "traceability" && "Traceability"}
+                            {activeTab === "api" && "API Gateway"}
+                        </div>
+                        
+                        <div className="mobile-nav-right-actions">
+                            {activeTab !== "api" && activeTab !== "traceability" && (
+                                <button 
+                                    className={`mobile-toggle-btn summary-btn-toggle ${showSummary ? 'active' : ''}`}
+                                    onClick={() => setShowSummary(!showSummary)}
+                                    title="Toggle AI Workspace"
+                                >
+                                    <FaCube />
+                                </button>
+                            )}
+                            
+                            <div className="mobile-kebab-menu-container">
+                                <button 
+                                    className={`mobile-kebab-btn ${isMobileNavOpen ? 'active' : ''}`}
+                                    onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
+                                    title="Intelligence Navigation"
+                                >
+                                    <FaEllipsisV />
+                                </button>
+                                
+                                {isMobileNavOpen && (
+                                    <div className="mobile-nav-dropdown">
+                                        <span className="dropdown-label">Navigation</span>
+                                        <button
+                                            className={`dropdown-item-btn ${activeTab === "dashboard" ? "active" : ""}`}
+                                            onClick={() => { setActiveTab("dashboard"); setIsMobileNavOpen(false); }}
+                                        >
+                                            <FaChartBar className="menu-icon" /> Dashboard
+                                        </button>
+
+                                        <button
+                                            className={`dropdown-item-btn ${activeTab === "tree" ? "active" : ""}`}
+                                            onClick={() => { setActiveTab("tree"); setIsMobileNavOpen(false); }}
+                                        >
+                                            <FaSitemap className="menu-icon" /> Tree Structure
+                                        </button>
+
+                                        <button
+                                            className={`dropdown-item-btn ${activeTab === "dependencies" ? "active" : ""}`}
+                                            onClick={() => { setActiveTab("dependencies"); setIsMobileNavOpen(false); }}
+                                        >
+                                            <FaProjectDiagram className="menu-icon" /> Dependency Graph
+                                        </button>
+
+                                        <button
+                                            className={`dropdown-item-btn ${activeTab === "traceability" ? "active" : ""}`}
+                                            onClick={() => { setActiveTab("traceability"); setIsMobileNavOpen(false); }}
+                                        >
+                                            <FaExchangeAlt className="menu-icon" /> Traceability Engine
+                                        </button>
+
+                                        <button
+                                            className={`dropdown-item-btn ${activeTab === "api" ? "active" : ""}`}
+                                            onClick={() => { setActiveTab("api"); setIsMobileNavOpen(false); }}
+                                        >
+                                            <FaRoute className="menu-icon" /> API Endpoints
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
                     {activeTab === "dashboard" && (
                         <div className="dashboard-view-container">
                             <h2 className="dashboard-title">Repository Intelligence Overview</h2>
@@ -594,9 +708,19 @@ function Analyze() {
                 </div>
 
                 {/* Right Sidebar layout for AI summaries and Code Viewer */}
-                {activeTab !== "api" && activeTab !== "traceability" && showSummary && (
-                    <div className="summary">
-                        <span className="panel-label">Analysis Workspace</span>
+                {activeTab !== "api" && activeTab !== "traceability" && (
+                    <div className={`summary ${showSummary ? 'open-drawer' : 'closed-drawer'}`}>
+                        <div className="summary-mobile-header">
+                            <span className="panel-label">Analysis Workspace</span>
+                            <button 
+                                className="summary-close-btn"
+                                onClick={() => setShowSummary(false)}
+                                title="Close Analysis Workspace"
+                            >
+                                <FaTimes />
+                            </button>
+                        </div>
+                        <span className="panel-label desktop-only-label">Analysis Workspace</span>
                         <Summary
                             selectedNode={selectedNode}
                             username={username}
