@@ -1,10 +1,101 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
+import Cube3D from "../components/cube_3d";
 import "../App.css";
 
 function Home() {
   const navigate = useNavigate();
   const [url, setUrl] = useState("");
+
+  const slides = [
+    {
+      titleBold: "Codebase",
+      titleLight: "Cipher",
+      subtitle: "visualize codebase",
+      description: "Visualize your GitHub repository in an interactive visualization scene. Enter a repository link and explore the code hierarchy, dependencies, and structure visually.",
+      showSearch: true,
+      colors: {
+        color1: "rgba(168, 85, 247, 0.45)", // purple
+        color2: "rgba(6, 182, 212, 0.38)",  // cyan
+        color3: "rgba(236, 72, 153, 0.3)",  // pink
+        dotColor: "#a855f7",
+        gradient: "linear-gradient(135deg, #a855f7 0%, #4f46e5 100%)",
+        glowColor: "rgba(168, 85, 247, 0.45)",
+        glowShadow: "rgba(168, 85, 247, 0.15)",
+      }
+    },
+    {
+      titleBold: "Interactive",
+      titleLight: "Visualization",
+      subtitle: "explore architecture",
+      description: "Navigate the complex web of folders and files in a rich, interactive canvas. Analyze code modularity and directory structure with immersive high-performance graphs.",
+      showSearch: false,
+      colors: {
+        color1: "rgba(6, 182, 212, 0.45)",  // cyan
+        color2: "rgba(59, 130, 246, 0.38)",  // blue
+        color3: "rgba(168, 85, 247, 0.3)",  // purple
+        dotColor: "#00d4ff",
+        gradient: "linear-gradient(135deg, #00d4ff 0%, #0891b2 100%)",
+        glowColor: "rgba(0, 212, 255, 0.45)",
+        glowShadow: "rgba(0, 212, 255, 0.15)",
+      }
+    },
+    {
+      titleBold: "Runtime",
+      titleLight: "Trace",
+      subtitle: "execution behavior",
+      description: "Trace sequence calls, execution logic, and functional dependencies in real-time. Visually isolate hot paths, performance bottlenecks, and recursive calls.",
+      showSearch: false,
+      colors: {
+        color1: "rgba(236, 72, 153, 0.45)", // pink
+        color2: "rgba(168, 85, 247, 0.38)", // purple
+        color3: "rgba(244, 63, 94, 0.3)",   // rose
+        dotColor: "#ec4899",
+        gradient: "linear-gradient(135deg, #ec4899 0%, #a855f7 100%)",
+        glowColor: "rgba(236, 72, 153, 0.45)",
+        glowShadow: "rgba(236, 72, 153, 0.15)",
+      }
+    },
+    {
+      titleBold: "AI Intelligence",
+      titleLight: "Engine",
+      subtitle: "semantic insights",
+      description: "Leverage advanced heuristics and structural code summarization. Generate modularity reports, circular dependency alerts, and natural language files explanation.",
+      showSearch: false,
+      colors: {
+        color1: "rgba(124, 58, 237, 0.45)", // violet
+        color2: "rgba(6, 182, 212, 0.38)",  // cyan
+        color3: "rgba(16, 185, 129, 0.3)",  // emerald
+        dotColor: "#7c3aed",
+        gradient: "linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%)",
+        glowColor: "rgba(124, 58, 237, 0.45)",
+        glowShadow: "rgba(124, 58, 237, 0.15)",
+      }
+    }
+  ];
+
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [renderSlide, setRenderSlide] = useState(0);
+  const [isFading, setIsFading] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+
+  const transitionToSlide = (index) => {
+    if (index === activeSlide) return;
+    setIsFading(true);
+    setTimeout(() => {
+      setActiveSlide(index);
+      setRenderSlide(index);
+      setIsFading(false);
+    }, 250);
+  };
+
+  useEffect(() => {
+    if (isInputFocused) return;
+    const interval = setInterval(() => {
+      transitionToSlide((activeSlide + 1) % slides.length);
+    }, 7000);
+    return () => clearInterval(interval);
+  }, [isInputFocused, activeSlide]);
 
   function handleAnalyze() {
     if (!url.trim()) {
@@ -60,28 +151,128 @@ function Home() {
     };
   }, []);
 
+  const handleNavClick = (e, target) => {
+    e.preventDefault();
+    if (target === 'home') {
+      transitionToSlide(0);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (target === 'features') {
+      const capSection = document.querySelector('.section-capabilities');
+      if (capSection) {
+        capSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else if (target === 'why-us') {
+      const whySection = document.querySelector('.section-why');
+      if (whySection) {
+        whySection.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else if (target === 'join') {
+      transitionToSlide(0);
+      setTimeout(() => {
+        const searchInput = document.querySelector('.premium-search-bar input');
+        if (searchInput) {
+          searchInput.focus();
+        }
+      }, 300);
+    }
+  };
+
+  const activeColors = slides[activeSlide].colors;
+  const heroStyle = {
+    "--fluid-color-1": activeColors.color1,
+    "--fluid-color-2": activeColors.color2,
+    "--fluid-color-3": activeColors.color3,
+    "--active-dot-color": activeColors.dotColor,
+    "--active-gradient": activeColors.gradient,
+    "--active-glow-color": activeColors.glowColor,
+    "--active-glow-shadow": activeColors.glowShadow,
+  };
+
   return (
     <div className="home-container">
+      <Cube3D />
       {/* 1. HERO SECTION (100vh fold) */}
-      <div className="home-hero">
-        <div className="home-bg" />
+      <div className="home-hero" style={heroStyle}>
+        {/* Mesmerizing Liquid Fluid Backdrop */}
+        <div className="fluid-backdrop">
+          <div className="fluid-blob blob-1"></div>
+          <div className="fluid-blob blob-2"></div>
+          <div className="fluid-blob blob-3"></div>
+        </div>
 
-        <div className="home-content">
-          <div className="home-title">
-            <div className="heading">Codebase</div>
-            <div className="heading">Cipher</div>
+        {/* Absolute-Positioned Premium Header */}
+        <header className="premium-header">
+          <div className="header-logo" onClick={(e) => handleNavClick(e, 'home')}>
+            Codebase Cipher
           </div>
-          <p className="home-sub">Visualize A Codebase</p>
+          <nav className="header-nav">
+            <a href="#home" className={`nav-link ${activeSlide === 0 ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'home')}>
+              Home
+            </a>
+            <a href="#features" className="nav-link" onClick={(e) => handleNavClick(e, 'features')}>
+              Features
+            </a>
+            <a href="#why-us" className="nav-link" onClick={(e) => handleNavClick(e, 'why-us')}>
+              Why Us
+            </a>
+            <a href="#join" className="nav-link" onClick={(e) => handleNavClick(e, 'join')}>
+              Join Us
+            </a>
+          </nav>
+        </header>
 
-          <div className="search-bar">
-            <input
-              type="url"
-              placeholder="https://github.com/username/repository"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
-            />
-            <button onClick={handleAnalyze}>Analyze →</button>
+        {/* Home Content Layer */}
+        <div className="home-content">
+          {/* Left half: Mesmerizing animated mesh background with floating 3D cube */}
+          <div className="hero-left">
+          </div>
+
+          {/* Right half: Text stack & search bar aligned with the user mockup */}
+          <div className="hero-right">
+            {/* Sliding Copy Container */}
+            <div className={`premium-slide-content ${isFading ? 'slide-fade-exit-active' : 'slide-fade-enter-active'}`}>
+              <div className="premium-title-container">
+                <h1 className="title-bold">{slides[renderSlide].titleBold}</h1>
+                <h1 className="title-light">{slides[renderSlide].titleLight}</h1>
+              </div>
+
+              <div className="premium-subtitle-wrapper">
+                <h3 className="premium-subtitle">{slides[renderSlide].subtitle}</h3>
+                <div className="subtitle-underline"></div>
+              </div>
+
+              <p className="premium-description">
+                {slides[renderSlide].description}
+              </p>
+            </div>
+
+            {/* Premium capsule-style search ingestion bar (visible consistently for rapid access, shifts state elegantly) */}
+            <div className="premium-search-container">
+              <div className="premium-search-bar">
+                <input
+                  type="url"
+                  placeholder="https://github.com/username/repository"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  onFocus={() => setIsInputFocused(true)}
+                  onBlur={() => setIsInputFocused(false)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
+                />
+                <button onClick={handleAnalyze}>Analyze →</button>
+              </div>
+            </div>
+
+            {/* Pagination / Slide Selectors (dots `o o o o` from user mockup) */}
+            <div className="premium-dots-container">
+              {slides.map((_, index) => (
+                <button
+                  key={index}
+                  className={`premium-dot ${activeSlide === index ? 'active' : ''}`}
+                  onClick={() => transitionToSlide(index)}
+                  title={`Slide ${index + 1}`}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -89,9 +280,9 @@ function Home() {
       {/* 2. CORE CAPABILITIES SECTION */}
       <section className="section-capabilities">
         <div className="section-header-wrapper">
-          <div className="section-pill scroll-reveal">CORE CAPABILITIES</div>
+          <div className="section-pill scroll-reveal">CORE FEATURES</div>
           <h2 className="section-title scroll-reveal">
-            Repository Intelligence <span className="gradient-text">Engine</span>
+            Codebase Visualization <span className="gradient-text">Features</span>
           </h2>
           <div className="section-underline scroll-reveal"></div>
         </div>
@@ -119,40 +310,11 @@ function Home() {
 
               <div className="card-body">
                 <ul className="card-list">
-                  <li><span className="dot blue-dot"></span>Dependency Mapping</li>
-                  <li><span className="dot blue-dot"></span>Directory Topology</li>
-                  <li><span className="dot blue-dot"></span>Call Graph System</li>
-                  <li><span className="dot blue-dot"></span>Multi-View Modes</li>
+                  <li><span className="dot blue-dot"></span>Interactive Directory Topology</li>
+                  <li><span className="dot blue-dot"></span>Multi-View Call Graph System</li>
+                  <li><span className="dot blue-dot"></span>Automatic Code Dependency Mapping</li>
+                  <li><span className="dot blue-dot"></span>Dynamic High-Performance Layouts</li>
                 </ul>
-
-                <div className="card-graphic graph-graphic">
-                  <svg className="network-svg" viewBox="0 0 200 200">
-                    <path className="net-line active-line" d="M100 35 L60 95" />
-                    <path className="net-line active-line" d="M100 35 L140 95" />
-                    <path className="net-line" d="M60 95 L30 155" />
-                    <path className="net-line" d="M60 95 L90 155" />
-                    <path className="net-line" d="M140 95 L110 155" />
-                    <path className="net-line" d="M140 95 L170 155" />
-
-                    <circle className="net-node-pulse" cx="100" cy="35" r="14" />
-                    <circle className="net-node root-node" cx="100" cy="35" r="8" />
-
-                    <circle className="net-node parent-node" cx="60" cy="95" r="6" />
-                    <circle className="net-node parent-node" cx="140" cy="95" r="6" />
-
-                    <circle className="net-node leaf-node" cx="30" cy="155" r="4.5" />
-                    <circle className="net-node leaf-node" cx="90" cy="155" r="4.5" />
-                    <circle className="net-node leaf-node" cx="110" cy="155" r="4.5" />
-                    <circle className="net-node leaf-node" cx="170" cy="155" r="4.5" />
-
-                    <circle className="flow-particle p1" r="3" fill="#00d4ff">
-                      <animateMotion dur="2.8s" repeatCount="indefinite" path="M100 35 L60 95 L30 155" />
-                    </circle>
-                    <circle className="flow-particle p2" r="3" fill="#00d4ff">
-                      <animateMotion dur="2.2s" repeatCount="indefinite" path="M100 35 L140 95 L170 155" />
-                    </circle>
-                  </svg>
-                </div>
               </div>
             </div>
           </div>
@@ -175,42 +337,11 @@ function Home() {
 
               <div className="card-body">
                 <ul className="card-list">
-                  <li><span className="dot purple-dot"></span>Execution Flow Tracking</li>
-                  <li><span className="dot purple-dot"></span>Sequence Visualization</li>
-                  <li><span className="dot purple-dot"></span>Call Relationships</li>
-                  <li><span className="dot purple-dot"></span>Error Path Detection</li>
+                  <li><span className="dot purple-dot"></span>Real-Time Execution Flow Visualizer</li>
+                  <li><span className="dot purple-dot"></span>Sequence Call Path Generation</li>
+                  <li><span className="dot purple-dot"></span>Active Bottleneck Performance Mapping</li>
+                  <li><span className="dot purple-dot"></span>Recursive Function Graphing</li>
                 </ul>
-
-                <div className="card-graphic trace-graphic">
-                  <svg className="trace-svg" viewBox="0 0 200 200">
-                    <path className="trace-path active-trace" d="M100 30 L100 70" />
-                    <path className="trace-path active-trace" d="M100 90 L60 130" />
-                    <path className="trace-path error-trace" d="M100 90 L140 130" />
-
-                    <rect className="trace-box" x="70" y="15" width="60" height="18" rx="4" />
-                    <text className="trace-text" x="100" y="27">main()</text>
-
-                    <rect className="trace-box highlight" x="70" y="70" width="60" height="18" rx="4" />
-                    <text className="trace-text" x="100" y="82">router()</text>
-
-                    <rect className="trace-box" x="30" y="130" width="60" height="18" rx="4" />
-                    <text className="trace-text" x="60" y="142">auth()</text>
-
-                    <rect className="trace-box error-box" x="110" y="130" width="60" height="18" rx="4" />
-                    <text className="trace-text" x="140" y="142">db_conn()</text>
-
-                    <circle className="error-circle-pulse" cx="140" cy="170" r="10" />
-                    <circle className="error-circle" cx="140" cy="170" r="6" />
-                    <text className="error-x" x="140" y="174" textAnchor="middle">×</text>
-
-                    <circle className="pulse-signal p-success" r="3" fill="#a855f7">
-                      <animateMotion dur="2.4s" repeatCount="indefinite" path="M100 30 L100 70 L60 130" />
-                    </circle>
-                    <circle className="pulse-signal p-error" r="3" fill="#dc2626">
-                      <animateMotion dur="1.8s" repeatCount="indefinite" path="M100 30 L100 70 L140 130" />
-                    </circle>
-                  </svg>
-                </div>
               </div>
             </div>
           </div>
@@ -231,46 +362,11 @@ function Home() {
 
               <div className="card-body">
                 <ul className="card-list">
-                  <li><span className="dot cyan-dot"></span>AI Code Summaries</li>
-                  <li><span className="dot cyan-dot"></span>Architecture Insights</li>
-                  <li><span className="dot cyan-dot"></span>Step Details Panel</li>
-                  <li><span className="dot cyan-dot"></span>Heuristic Navigation</li>
+                  <li><span className="dot cyan-dot"></span>Natural Language Codebase Summaries</li>
+                  <li><span className="dot cyan-dot"></span>Structural Insight Generation</li>
+                  <li><span className="dot cyan-dot"></span>Interactive Code Explanation Panel</li>
+                  <li><span className="dot cyan-dot"></span>Semantic Heuristic Analysis Engine</li>
                 </ul>
-
-                <div className="card-graphic ide-graphic">
-                  <div className="ide-header">
-                    <div className="ide-dots">
-                      <span className="ide-dot red"></span>
-                      <span className="ide-dot yellow"></span>
-                      <span className="ide-dot green"></span>
-                    </div>
-                    <div className="ide-title">ast_analyzer.py</div>
-                  </div>
-
-                  <div className="ide-content">
-                    <div className="code-lines">
-                      <div className="code-line"><span className="line-num">1</span> <span className="k">def</span> <span className="f">analyze_ast</span>(node):</div>
-                      <div className="code-line"><span className="line-num">2</span> <span className="line-indent"></span><span className="k">if</span> node <span className="k">is</span> <span className="v">None</span>:</div>
-                      <div className="code-line"><span className="line-num">3</span> <span className="line-indent"></span><span className="line-indent"></span><span className="k">return</span> []</div>
-                      <div className="code-line active"><span className="line-num">4</span> <span className="line-indent"></span>summary = <span className="f">ai_summarize</span>(node)</div>
-                      <div className="code-line"><span className="line-num">5</span> <span className="line-indent"></span><span className="k">return</span> summary</div>
-                    </div>
-
-                    <div className="ai-summary-overlay">
-                      <div className="ai-summary-title">
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '5px' }}>
-                          <polygon points="12 2 2 22 22 22" />
-                        </svg>
-                        AI Summary
-                      </div>
-                      <div className="ai-summary-text-lines">
-                        <div className="summary-line l1"></div>
-                        <div className="summary-line l2"></div>
-                        <div className="summary-line l3"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -295,44 +391,11 @@ function Home() {
 
               <div className="card-body">
                 <ul className="card-list">
-                  <li><span className="dot violet-dot"></span>Auto Repository Analysis</li>
-                  <li><span className="dot violet-dot"></span>Large Repo Optimization</li>
-                  <li><span className="dot violet-dot"></span>Productivity Dashboard</li>
-                  <li><span className="dot violet-dot"></span>Export & Reports</li>
+                  <li><span className="dot violet-dot"></span>Multi-Repository Automated Processing</li>
+                  <li><span className="dot violet-dot"></span>Optimized Performance for Large Codebases</li>
+                  <li><span className="dot violet-dot"></span>Clean Visual Architectural Reports</li>
+                  <li><span className="dot violet-dot"></span>Flexible PDF & JSON Insight Exports</li>
                 </ul>
-
-                <div className="card-graphic charts-graphic">
-                  <div className="chart-wrapper line-chart-wrapper">
-                    <svg className="chart-svg" viewBox="0 0 160 60">
-                      <defs>
-                        <linearGradient id="line-grad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#7c3aed" stopOpacity="0.4" />
-                          <stop offset="100%" stopColor="#7c3aed" stopOpacity="0" />
-                        </linearGradient>
-                      </defs>
-                      <line x1="0" y1="12" x2="160" y2="12" stroke="rgba(255,255,255,0.03)" />
-                      <line x1="0" y1="30" x2="160" y2="30" stroke="rgba(255,255,255,0.03)" />
-                      <line x1="0" y1="48" x2="160" y2="48" stroke="rgba(255,255,255,0.03)" />
-
-                      <path className="chart-line-gradient" d="M 0 48 Q 30 25 60 35 T 120 12 T 160 22 L 160 60 L 0 60 Z" />
-                      <path className="chart-line" d="M 0 48 Q 30 25 60 35 T 120 12 T 160 22" fill="none" />
-                      <circle className="chart-point" cx="120" cy="12" r="3" />
-                      <circle className="chart-point-pulse" cx="120" cy="12" r="7" />
-                    </svg>
-                  </div>
-
-                  <div className="chart-wrapper bar-chart-wrapper">
-                    <svg className="chart-svg" viewBox="0 0 160 50">
-                      <rect className="chart-bar b1" x="10" y="32" width="10" height="18" rx="2" />
-                      <rect className="chart-bar b2" x="30" y="18" width="10" height="32" rx="2" />
-                      <rect className="chart-bar b3" x="50" y="26" width="10" height="24" rx="2" />
-                      <rect className="chart-bar b4" x="70" y="10" width="10" height="40" rx="2" />
-                      <rect className="chart-bar b5" x="90" y="20" width="10" height="30" rx="2" />
-                      <rect className="chart-bar b6" x="110" y="6" width="10" height="44" rx="2" />
-                      <rect className="chart-bar b7" x="130" y="14" width="10" height="36" rx="2" />
-                    </svg>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
