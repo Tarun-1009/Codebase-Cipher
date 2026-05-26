@@ -1568,7 +1568,7 @@
   }
 
   .hero-left {
-    height: 200px !important;
+    height: 280px !important;
     padding: 0 !important;
     flex: none !important;
     order: 2 !important;
@@ -1584,15 +1584,15 @@
     top: auto !important;
     transform: none !important;
     margin: 0 auto !important;
-    width: 180px !important;
-    height: 180px !important;
+    width: 260px !important;
+    height: 260px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
   }
 
   .cube-fixed-wrapper .viewport-3d {
-    transform: scale(0.32) !important;
+    transform: scale(0.45) !important;
     max-width: 100% !important;
     max-height: 100% !important;
     --slide-x-multiplier: 0px !important;
