@@ -8,7 +8,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 24px;
+  padding: 0 24px 0 0px;
   z-index: 100;
   flex-shrink: 0;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
@@ -40,6 +40,9 @@
 
 /* On the analyze page (dark header), invert + brighten the logo so it glows white/cyan */
 .logo.logo-analyze {
+  width: 240px;
+  max-height: 54px;
+  margin-left: -14px;
   filter: brightness(0) invert(1) drop-shadow(0 0 10px rgba(168, 85, 247, 0.4));
 }
 
@@ -149,6 +152,7 @@
     opacity: 0;
     transform: translateY(-6px) scale(0.97);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -337,6 +341,7 @@
 .export-btn:active {
   transform: translateY(0);
 }
+
 /* Responsive header adjustments for analyze page */
 @media (max-width: 900px) {
   .app-header {
@@ -358,6 +363,12 @@
   .logo {
     width: 95px;
     max-height: 32px;
+  }
+
+  .logo.logo-analyze {
+    width: 145px;
+    max-height: 44px;
+    margin-left: -10px;
   }
 
   .header-branch-wrapper {
@@ -410,11 +421,11 @@
     .header-btn-text {
       display: none !important;
     }
-    
+
     .header-action-btn svg {
       margin-right: 0 !important;
     }
-    
+
     .header-action-btn {
       padding: 4px 10px;
     }
