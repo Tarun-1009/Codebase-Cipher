@@ -1617,11 +1617,18 @@
   /* Title responsive sizing */
   .title-bold, 
   .title-light {
-    font-size: 2.2rem !important;
+    font-size: clamp(1.8rem, 8vw, 2.2rem) !important;
+    letter-spacing: 0.05em !important;
   }
 
   .premium-subtitle {
     font-size: 1.05rem !important;
+  }
+
+  .premium-description {
+    font-size: 0.88rem !important;
+    line-height: 1.52 !important;
+    color: rgba(255, 255, 255, 0.75) !important;
   }
 
   /* Section headers mobile sizes */
@@ -1694,5 +1701,17 @@
   .premium-dot {
     width: 10px !important;
     height: 10px !important;
+  }
+}
+
+/* Hide header navigation links and center brand logo on small viewports */
+@media (max-width: 600px) {
+  .premium-header {
+    padding: 0 1rem !important;
+    justify-content: center !important;
+  }
+
+  .header-nav {
+    display: none !important;
   }
 }
