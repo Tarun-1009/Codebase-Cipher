@@ -183,6 +183,49 @@
     display: inline-block;
 }
 
+/* RESPONSIVE DESIGN - MOBILE AND TABLET */
+@media (max-width: 900px) {
+    .dep-panel-left {
+        margin: 10px !important;
+        gap: 8px;
+        max-width: calc(100% - 20px) !important;
+        overflow-x: auto;
+        padding-bottom: 6px;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+        display: flex !important;
+        flex-wrap: nowrap !important;
+    }
+    
+    .dep-panel-left::-webkit-scrollbar {
+        display: none;
+    }
+    
+    .dep-stat-card {
+        flex-shrink: 0;
+        padding: 6px 12px;
+        height: 48px;
+    }
+    
+    .dep-panel-right {
+        top: auto !important;
+        bottom: 115px !important; /* Move above MiniMap */
+        right: 10px !important;
+        left: auto !important;
+        margin: 10px !important;
+    }
+    
+    .dep-legend-item {
+        margin-top: 0 !important;
+        background: rgba(15, 23, 42, 0.7) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        padding: 8px 12px;
+        border-radius: 8px;
+        backdrop-filter: blur(12px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    }
+}
+
 /* React Flow Default Overrides */
 .dep-custom-controls {
     box-shadow: 0 4px 16px rgba(31, 41, 124, 0.04) !important;
