@@ -11,9 +11,12 @@ const {
     getSummaryRunDetails
 } = require("./src/services/bottomUpSummary");
 
+const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 const app = express();
 
-app.use(cors());
+app.use(cors({
+    origin: frontendUrl
+}));
 app.use(express.json());
 
 app.get("/", (req, res) => {
@@ -150,7 +153,7 @@ process.on('SIGTERM', async () => {
     await prisma.$disconnect();
     process.exit(0);
 });
-
-app.listen(5000, () => {
-    console.log("Server is running on port 5000");
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+    console.log("Server is running on port ",PORT);
 });
