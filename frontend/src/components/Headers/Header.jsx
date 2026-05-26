@@ -1,12 +1,16 @@
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
 import './Header.css';
 import logo from '../../assets/logo.png';
-import { FaPlay, FaDownload } from 'react-icons/fa';
+import { FaPlay, FaDownload, FaCodeBranch, FaChevronDown } from 'react-icons/fa';
 
 const Header = ({ repoUrl, setRepoUrl, onAnalyze, onExport, branches = [], selectedBranch, setSelectedBranch }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isAnalyze = location.pathname.startsWith('/analyze');
+
+  const [branchOpen, setBranchOpen] = useState(false);
+  const branchRef = useRef(null);
 
   const handleLogoClick = () => {
     navigate('/');
@@ -18,30 +22,56 @@ const Header = ({ repoUrl, setRepoUrl, onAnalyze, onExport, branches = [], selec
     }
   };
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (branchRef.current && !branchRef.current.contains(e.target)) {
+        setBranchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleBranchSelect = (br) => {
+    setSelectedBranch(br);
+    setBranchOpen(false);
+  };
+
   return (
     <header className="app-header">
       <div className="header-left" onClick={handleLogoClick} style={{ cursor: 'pointer' }}>
-        {isAnalyze ? (
-          <span className="header-logo">Codebase Cipher</span>
-        ) : (
-          <img src={logo} alt="Logo" className="logo" />
-        )}
+        <img src={logo} alt="Codebase Cipher" className={`logo ${isAnalyze ? 'logo-analyze' : ''}`} />
       </div>
 
-      <div class="app-header">
+      {/* Custom Branch Dropdown */}
+      <div className="header-branch-wrapper" ref={branchRef}>
         {branches && branches.length > 0 && (
-          <select
-            value={selectedBranch}
-            onChange={(e) => setSelectedBranch(e.target.value)}
-            className="header-branch-select"
-            title="Select Branch"
-          >
-            {branches.map(br => (
-              <option key={br} value={br}>
-                {br}
-              </option>
-            ))}
-          </select>
+          <div className={`branch-dropdown ${branchOpen ? 'open' : ''}`}>
+            <button
+              className="branch-dropdown-trigger"
+              onClick={() => setBranchOpen(!branchOpen)}
+              title="Select Branch"
+            >
+              <FaCodeBranch className="branch-trigger-icon" />
+              <span className="branch-trigger-text">{selectedBranch || 'branch'}</span>
+              <FaChevronDown className={`branch-chevron ${branchOpen ? 'rotated' : ''}`} />
+            </button>
+            {branchOpen && (
+              <div className="branch-dropdown-menu">
+                {branches.map(br => (
+                  <div
+                    key={br}
+                    className={`branch-dropdown-item ${br === selectedBranch ? 'active' : ''}`}
+                    onClick={() => handleBranchSelect(br)}
+                  >
+                    <FaCodeBranch className="branch-item-icon" />
+                    <span>{br}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
