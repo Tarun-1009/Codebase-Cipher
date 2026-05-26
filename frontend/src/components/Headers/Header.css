@@ -229,12 +229,20 @@
   padding: 2px 6px;
   width: 45%;
   max-width: 550px;
-  margin-right: -5em;
   transition: all var(--transition-normal);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15),
     inset 0 1px 0px rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+}
+
+.header-center-search .run-btn {
+  height: 30px;
+  padding: 4px 14px;
+  font-size: 0.76rem;
+  border-radius: 8px;
+  margin-left: 6px;
+  flex-shrink: 0;
 }
 
 .header-center-search:focus-within {
@@ -328,4 +336,87 @@
 
 .export-btn:active {
   transform: translateY(0);
+}
+/* Responsive header adjustments for analyze page */
+@media (max-width: 900px) {
+  .app-header {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    height: auto;
+  }
+
+  /* Row 1: Left-aligned Logo, Right-aligned Branch and Export */
+  .header-left {
+    order: 1;
+    width: auto;
+    justify-content: flex-start;
+  }
+
+  .logo {
+    width: 95px;
+    max-height: 32px;
+  }
+
+  .header-branch-wrapper {
+    order: 2;
+    width: auto;
+    margin-left: auto;
+    margin-top: 0;
+  }
+
+  .branch-dropdown-trigger {
+    padding: 5px 12px;
+    font-size: 0.72rem;
+    gap: 6px;
+  }
+
+  .branch-trigger-text {
+    max-width: 80px;
+  }
+
+  .header-right {
+    order: 3;
+    width: auto;
+    justify-content: flex-end;
+    gap: 0;
+  }
+
+  /* Row 2: Search bar (full width) containing the URL input and the Analyze button side-by-side */
+  .header-center-search {
+    order: 4;
+    width: 100%;
+    flex: 1 1 100%;
+    max-width: none;
+    margin: 0;
+  }
+
+  .header-search-input {
+    font-size: 0.8rem;
+    padding: 6px 10px;
+  }
+
+  .header-action-btn {
+    height: 30px;
+    padding: 4px 12px;
+    font-size: 0.72rem;
+    min-width: 0;
+  }
+
+  /* On extremely small screens, reduce Export Report text to Report and Analyze to icon-only or compact */
+  @media (max-width: 480px) {
+    .header-btn-text {
+      display: none !important;
+    }
+    
+    .header-action-btn svg {
+      margin-right: 0 !important;
+    }
+    
+    .header-action-btn {
+      padding: 4px 10px;
+    }
+  }
 }
