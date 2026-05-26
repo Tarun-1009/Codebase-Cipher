@@ -1,6 +1,8 @@
 import { jsPDF } from 'jspdf';
 import flattenTree from './treeFlattener';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 /**
  * Generates a beautiful 3-page PDF analysis report matching the website theme.
  * Downloads the file on the user's system.
@@ -15,12 +17,12 @@ export async function generatePdfReport(repoName, repoData, selectedBranch, user
   let aiSummary = '';
   try {
     const branchQuery = selectedBranch ? `?branch=${encodeURIComponent(selectedBranch)}` : '';
-    const latestResponse = await fetch(`http://localhost:5000/summaries/latest/${username}/${repoName}${branchQuery}`);
+    const latestResponse = await fetch(`${API_BASE_URL}/summaries/latest/${username}/${repoName}${branchQuery}`);
 
     if (latestResponse.ok) {
       const latestRun = await latestResponse.json();
       if (latestRun?.id) {
-        const runResponse = await fetch(`http://localhost:5000/summaries/run/${latestRun.id}`);
+        const runResponse = await fetch(`${API_BASE_URL}/summaries/run/${latestRun.id}`);
         if (runResponse.ok) {
           const runData = await runResponse.json();
           aiSummary = runData?.repoSummary?.summary || '';

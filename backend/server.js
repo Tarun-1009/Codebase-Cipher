@@ -11,7 +11,7 @@ const {
     getSummaryRunDetails
 } = require("./src/services/bottomUpSummary");
 
-const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 const app = express();
 
 app.use(cors({

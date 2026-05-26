@@ -26,6 +26,8 @@ import {
 } from "react-icons/fa";
 import "./analyze.css";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 function Analyze() {
     const { username, repo } = useParams();
     const navigate = useNavigate();
@@ -67,7 +69,7 @@ function Analyze() {
         setBranches([]);
         setSelectedBranch("");
 
-        fetch(`http://localhost:5000/branches/${username}/${repo}`)
+        fetch(`${API_BASE_URL}/branches/${username}/${repo}`)
             .then(res => {
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 return res.json();
@@ -107,7 +109,7 @@ function Analyze() {
 
         const branchQuery = selectedBranch ? `?branch=${selectedBranch}` : "";
 
-        fetch(`http://localhost:5000/analyze/${username}/${repo}${branchQuery}`)
+        fetch(`${API_BASE_URL}/analyze/${username}/${repo}${branchQuery}`)
             .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
             .then(data => setRepoData(data))
             .catch(err => setError(err))

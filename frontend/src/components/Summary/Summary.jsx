@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { FaCopy, FaFileAlt, FaCode, FaTerminal, FaCube } from 'react-icons/fa';
 import './Summary.css';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 function normalizeNodePath(pathValue, fallbackName = '') {
     const raw = typeof pathValue === 'string' && pathValue.trim()
         ? pathValue.trim()
@@ -50,7 +52,7 @@ function Summary({ selectedNode, username, repo, repoData, selectedBranch }) {
             try {
                 const branchQuery = selectedBranch ? `?branch=${encodeURIComponent(selectedBranch)}` : '';
                 const fetchLatestRun = async () => {
-                    const latestResponse = await fetch(`http://localhost:5000/summaries/latest/${username}/${repo}${branchQuery}`, {
+                    const latestResponse = await fetch(`${API_BASE_URL}/summaries/latest/${username}/${repo}${branchQuery}`, {
                         signal: controller.signal
                     });
 
@@ -67,7 +69,7 @@ function Summary({ selectedNode, username, repo, repoData, selectedBranch }) {
 
                 let latestRun = await fetchLatestRun();
                 if (!latestRun) {
-                    const buildResponse = await fetch(`http://localhost:5000/summaries/build/${username}/${repo}`, {
+                    const buildResponse = await fetch(`${API_BASE_URL}/summaries/build/${username}/${repo}`, {
                         method: 'POST',
                         signal: controller.signal,
                         headers: {
@@ -89,7 +91,7 @@ function Summary({ selectedNode, username, repo, repoData, selectedBranch }) {
                     return;
                 }
 
-                const runResponse = await fetch(`http://localhost:5000/summaries/run/${latestRun.id}`, {
+                const runResponse = await fetch(`${API_BASE_URL}/summaries/run/${latestRun.id}`, {
                     signal: controller.signal
                 });
                 if (!runResponse.ok) {
@@ -244,7 +246,7 @@ function Summary({ selectedNode, username, repo, repoData, selectedBranch }) {
                     ].join('\n');
                 }
 
-                const response = await fetch('http://localhost:5000/summarize', {
+                const response = await fetch(`${API_BASE_URL}/summarize`, {
                     method: 'POST',
                     signal: controller.signal,
                     headers: {
