@@ -190,7 +190,6 @@ function Home() {
 
   return (
     <div className="home-container">
-      <Cube3D />
       {/* 1. HERO SECTION (100vh fold) */}
       <div className="home-hero" style={heroStyle}>
         {/* Mesmerizing Liquid Fluid Backdrop */}
@@ -225,6 +224,7 @@ function Home() {
         <div className="home-content">
           {/* Left half: Mesmerizing animated mesh background with floating 3D cube */}
           <div className="hero-left">
+            <Cube3D />
           </div>
 
           {/* Right half: Text stack & search bar aligned with the user mockup */}

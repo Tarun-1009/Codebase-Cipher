@@ -131,6 +131,7 @@ export default function ApiCatalog({ apiEndpoints = [], repoTree = {} }) {
     const [selectedEndpoint, setSelectedEndpoint] = useState(null);
     const [isCollapsed, setIsCollapsed] = useState(false); // Collapses Details Column
     const [currentPage, setCurrentPage] = useState(1);
+    const [activeMobileTab, setActiveMobileTab] = useState('list'); // 'list' | 'details' | 'code'
     
     // Copy statuses
     const [copiedRequest, setCopiedRequest] = useState(false);
@@ -299,11 +300,35 @@ export default function ApiCatalog({ apiEndpoints = [], repoTree = {} }) {
                 </div>
             </div>
 
+            {/* MOBILE ONLY TAB NAVIGATION */}
+            <div className="api-mobile-tabs">
+                <button 
+                    className={`api-mobile-tab-btn ${activeMobileTab === 'list' ? 'active' : ''}`}
+                    onClick={() => setActiveMobileTab('list')}
+                >
+                    <FaNetworkWired style={{ marginRight: 6 }} /> List
+                </button>
+                <button 
+                    className={`api-mobile-tab-btn ${activeMobileTab === 'details' ? 'active' : ''}`}
+                    onClick={() => setActiveMobileTab('details')}
+                    disabled={!selectedEndpoint}
+                >
+                    <FaInfoCircle style={{ marginRight: 6 }} /> Details
+                </button>
+                <button 
+                    className={`api-mobile-tab-btn ${activeMobileTab === 'code' ? 'active' : ''}`}
+                    onClick={() => setActiveMobileTab('code')}
+                    disabled={!selectedEndpoint}
+                >
+                    <FaCode style={{ marginRight: 6 }} /> Source Code
+                </button>
+            </div>
+
             {/* 2. THREE COLUMN BOTTOM GRID */}
             <div className="api-main-grid">
                 
                 {/* COLUMN 1: ENDPOINTS LIST VIEW */}
-                <div className="api-panel endpoints-list-panel">
+                <div className={`api-panel endpoints-list-panel ${activeMobileTab === 'list' ? 'mobile-active' : 'mobile-hide'}`}>
                     <div className="api-panel-header">
                         <h3 className="api-panel-title">
                             Endpoints <span className="count-bubble">{filteredEndpoints.length}</span>
@@ -353,6 +378,7 @@ export default function ApiCatalog({ apiEndpoints = [], repoTree = {} }) {
                                             setSelectedEndpoint(ep);
                                             // auto expand if collapsed when changing endpoints
                                             if (isCollapsed) setIsCollapsed(false);
+                                            setActiveMobileTab('details');
                                         }}
                                     >
                                         <div className="endpoint-item-main">
@@ -416,7 +442,7 @@ export default function ApiCatalog({ apiEndpoints = [], repoTree = {} }) {
                 </div>
 
                 {/* COLUMN 2: ENDPOINT DETAILS VIEW */}
-                <div className={`api-panel details-panel ${isCollapsed ? 'collapsed' : ''}`}>
+                <div className={`api-panel details-panel ${isCollapsed ? 'collapsed' : ''} ${activeMobileTab === 'details' ? 'mobile-active' : 'mobile-hide'}`}>
                     <div className="api-panel-header">
                         <h3 className="api-panel-title">Endpoint Details</h3>
                         <button 
@@ -436,6 +462,12 @@ export default function ApiCatalog({ apiEndpoints = [], repoTree = {} }) {
                                     {selectedEndpoint.method}
                                 </span>
                                 <span className="detail-route-path">{selectedEndpoint.path}</span>
+                                <button 
+                                    className="mobile-view-code-btn"
+                                    onClick={() => setActiveMobileTab('code')}
+                                >
+                                    <FaCode /> View Code
+                                </button>
                             </div>
 
                             {/* Details Grid */}
@@ -444,13 +476,25 @@ export default function ApiCatalog({ apiEndpoints = [], repoTree = {} }) {
                                 <span className="grid-value">{endpointDetails.description}</span>
 
                                 <span className="grid-label"><FaFileCode className="grid-label-icon" /> Route File</span>
-                                <span className="grid-value monospace link" title="Clicking will highlight explorer node">{selectedEndpoint.handlerFile}</span>
+                                <span 
+                                    className="grid-value monospace link" 
+                                    title="Click to view source code"
+                                    onClick={() => setActiveMobileTab('code')}
+                                >
+                                    {selectedEndpoint.handlerFile}
+                                </span>
 
                                 <span className="grid-label"><FaCode className="grid-label-icon" /> Handler</span>
                                 <span className="grid-value monospace">{endpointDetails.handler}</span>
 
                                 <span className="grid-label"><FaTerminal className="grid-label-icon" /> Controller</span>
-                                <span className="grid-value monospace link">{endpointDetails.controller}</span>
+                                <span 
+                                    className="grid-value monospace link"
+                                    title="Click to view source code"
+                                    onClick={() => setActiveMobileTab('code')}
+                                >
+                                    {endpointDetails.controller}
+                                </span>
 
                                 <span className="grid-label"><FaShieldAlt className="grid-label-icon" /> Middleware</span>
                                 <span className="grid-value monospace">
@@ -521,7 +565,7 @@ export default function ApiCatalog({ apiEndpoints = [], repoTree = {} }) {
                 </div>
 
                 {/* COLUMN 3: LIVE SOURCE CODE VIEWER */}
-                <div className={`api-panel source-code-panel ${isCollapsed ? 'full-width' : ''}`}>
+                <div className={`api-panel source-code-panel ${isCollapsed ? 'full-width' : ''} ${activeMobileTab === 'code' ? 'mobile-active' : 'mobile-hide'}`}>
                     <div className="api-panel-header">
                         <h3 className="api-panel-title">
                             Source Code {sourceCodeDetails ? `(${sourceCodeDetails.fileName})` : ''}

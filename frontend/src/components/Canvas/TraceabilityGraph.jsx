@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
     ReactFlow,
     Background,
@@ -17,7 +17,9 @@ import {
     FaCompress,
     FaShareAlt,
     FaProjectDiagram,
-    FaListOl
+    FaListOl,
+    FaChevronDown,
+    FaTimes
 } from 'react-icons/fa';
 import './TraceabilityGraph.css';
 
@@ -112,6 +114,21 @@ export default function TraceabilityGraph({ traceability, apiEndpoints = [], onN
     const [activeTab, setActiveTab] = useState('flow'); // 'flow' | 'graph'
     const [selectedStep, setSelectedStep] = useState(null);
     const [zoomLevel, setZoomLevel] = useState(100);
+    const [showDetailsDrawer, setShowDetailsDrawer] = useState(false);
+
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
+    // Close custom dropdown on clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+                setDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     // Update selection when endpoints change
     useEffect(() => {
@@ -207,17 +224,38 @@ export default function TraceabilityGraph({ traceability, apiEndpoints = [], onN
             <div className="traceability-filters-bar">
                 <div className="filter-item-group">
                     <span className="filter-item-label">Endpoint</span>
-                    <select
-                        className="endpoint-dropdown-select"
-                        value={selectedEndpointId}
-                        onChange={e => setSelectedEndpointId(e.target.value)}
-                    >
-                        {activeEndpoints.map(ep => (
-                            <option key={ep.id} value={ep.id}>
-                                {ep.method} &nbsp; {ep.path}
-                            </option>
-                        ))}
-                    </select>
+                    <div className="custom-endpoint-dropdown" ref={dropdownRef}>
+                        <button
+                            className={`endpoint-dropdown-trigger ${dropdownOpen ? 'open' : ''}`}
+                            onClick={() => setDropdownOpen(!dropdownOpen)}
+                            title="Select Endpoint"
+                        >
+                            <span className={`endpoint-trigger-method ${activeEndpoint?.method?.toLowerCase()}`}>
+                                {activeEndpoint?.method || 'GET'}
+                            </span>
+                            <span className="endpoint-trigger-path">
+                                {activeEndpoint?.path || '/'}
+                            </span>
+                            <FaChevronDown className={`endpoint-chevron ${dropdownOpen ? 'rotated' : ''}`} />
+                        </button>
+                        {dropdownOpen && (
+                            <div className="endpoint-dropdown-menu">
+                                {activeEndpoints.map(ep => (
+                                    <div
+                                        key={ep.id}
+                                        className={`endpoint-dropdown-item ${ep.id === selectedEndpointId ? 'active' : ''}`}
+                                        onClick={() => {
+                                            setSelectedEndpointId(ep.id);
+                                            setDropdownOpen(false);
+                                        }}
+                                    >
+                                        <span className={`method-tag ${ep.method.toLowerCase()}`}>{ep.method}</span>
+                                        <span className="path-text">{ep.path}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className="filter-item-group">
@@ -259,6 +297,14 @@ export default function TraceabilityGraph({ traceability, apiEndpoints = [], onN
                                     Execution Flow &nbsp;
                                     <span className="branch-badge">{flowTraces.branches.length} branches</span>
                                 </h4>
+                                {selectedStep && (
+                                    <button 
+                                        className="traceability-mobile-details-btn"
+                                        onClick={() => setShowDetailsDrawer(true)}
+                                    >
+                                        <FaBoxes style={{ marginRight: 6 }} /> Step Info
+                                    </button>
+                                )}
                             </div>
 
                             <div
@@ -283,7 +329,10 @@ export default function TraceabilityGraph({ traceability, apiEndpoints = [], onN
                                                     <div
                                                         className={`flow-node-card ${isSelected ? 'selected' : ''} ${isEntry ? 'entry-point' : ''}`}
                                                         style={{ width: '100%', margin: 0 }}
-                                                        onClick={() => setSelectedStep(step)}
+                                                        onClick={() => {
+                                                            setSelectedStep(step);
+                                                            setShowDetailsDrawer(true);
+                                                        }}
                                                     >
                                                         {isEntry && <span className="node-branch-tag success">Entry</span>}
                                                         <div className="node-card-header">
@@ -354,7 +403,10 @@ export default function TraceabilityGraph({ traceability, apiEndpoints = [], onN
                                                                             <div
                                                                                 className={`flow-node-card ${isBSelected ? 'selected' : ''} ${isErrorBranch ? 'branch-error' : 'branch-alternative'}`}
                                                                                 style={{ width: '100%', margin: 0 }}
-                                                                                onClick={() => setSelectedStep(bStep)}
+                                                                                onClick={() => {
+                                                                                    setSelectedStep(bStep);
+                                                                                    setShowDetailsDrawer(true);
+                                                                                }}
                                                                             >
                                                                                 {sIdx === 0 && (
                                                                                     <span className={`node-branch-tag ${isErrorBranch ? 'error-flow' : 'alternative-flow'}`}>
@@ -417,9 +469,22 @@ export default function TraceabilityGraph({ traceability, apiEndpoints = [], onN
                         </div>
 
                         {/* RIGHT: Step details */}
-                        <div className="step-details-sidebar">
+                        {showDetailsDrawer && (
+                            <div 
+                                className="details-drawer-backdrop"
+                                onClick={() => setShowDetailsDrawer(false)}
+                            />
+                        )}
+                        <div className={`step-details-sidebar ${showDetailsDrawer ? 'open-drawer' : ''}`}>
                             <div className="step-details-header">
                                 <h4 className="step-details-title">Step Details</h4>
+                                <button 
+                                    className="step-details-close-btn"
+                                    onClick={() => setShowDetailsDrawer(false)}
+                                    title="Close Step Details"
+                                >
+                                    <FaTimes />
+                                </button>
                             </div>
                             {selectedStep ? (
                                 <div className="step-details-body">
