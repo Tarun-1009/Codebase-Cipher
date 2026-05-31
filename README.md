@@ -919,23 +919,7 @@ npm run build
 
 ---
 
-## 👥 Team
 
-### Contributors
-
-| Name | Role | Contributions | GitHub |
-|------|------|---------------|--------|
-| **Your Name** | Project Lead | Architecture, Core Engine | [@your-handle](https://github.com) |
-| **Developer 1** | Backend | API, Database, Parsers | [@dev1](https://github.com) |
-| **Developer 2** | Frontend | UI, Visualization | [@dev2](https://github.com) |
-
----
-
-## 📝 License
-
-This project is built as an open-source code analysis tool. Licensed under the MIT License.
-
----
 
 <div align="center">
 
@@ -944,8 +928,6 @@ This project is built as an open-source code analysis tool. Licensed under the M
 React · Express.js · tree-sitter · Groq API · PostgreSQL
 
 ### Bringing clarity to complex codebases, one visualization at a time. ✨
-
-**Have a question or suggestion?** [Open an issue](https://github.com/your-username/codebase-cipher/issues) or [start a discussion](https://github.com/your-username/codebase-cipher/discussions)
 
 ⭐ Star this repo if you find it helpful!
 
